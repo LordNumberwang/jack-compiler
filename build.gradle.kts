@@ -2,8 +2,14 @@ plugins {
     id("java")
 }
 
-group = "org.example"
+group = "me.lordnumberwang"
 version = "1.0-SNAPSHOT"
+
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes["Main-Class"] = "me.lordnumberwang.languageapp.SayHello"
+    }
+}
 
 repositories {
     mavenCentral()
