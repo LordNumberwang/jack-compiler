@@ -1,14 +1,6 @@
 plugins {
     id("java")
-}
-
-group = "me.lordnumberwang"
-version = "1.0-SNAPSHOT"
-
-tasks.named<Jar>("jar") {
-    manifest {
-        attributes["Main-Class"] = "me.lordnumberwang.languageapp.SayHello"
-    }
+    id("application")
 }
 
 repositories {
@@ -20,6 +12,29 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
+application {
+    mainClass = "me.lordnumberwang.jackcompiler.Main"
+}
+
+group = "me.lordnumberwang"
+version = "0.1"
+
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes["Main-Class"] = "me.lordnumberwang.jackcompiler.Main"
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
+}
+
+
+tasks.named<JavaExec>("run") {
+    // Run with: ./gradlew run -Pargs="/path/to/file1"
+    // Multiple files sent space delimited: ./gradlew run -Pargs="/path/to/file/file.vm /path/to/file/file2.vm"
+    description = "Compile Jack .vm files using gradlew run -Pargs=\"/path/to/file/file.vm /path/to/file/file2.vm\""
+    if (project.hasProperty("args")) {
+        args(project.properties["args"].toString().split("\\s+"))
+    }
 }
