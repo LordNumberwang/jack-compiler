@@ -1,12 +1,9 @@
 package me.lordnumberwang.vmcompiler;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.Arrays;
 import java.util.stream.Stream;
 import me.lordnumberwang.Parser;
@@ -21,12 +18,6 @@ public class VmParserTest {
   public void setupTest() {
     this.subject = new VmParser();
     this.testFile1 = "H:\\My Documents\\Learning\\Java\\IntelliJWorkspace\\nandToTetris2\\JackCompiler\\src\\test\\resources\\vm\\SimpleAdd.vm";
-
-  }
-
-  @Test
-  public void testInvalidFile() throws IOException {
-
   }
 
   @Test

@@ -41,8 +41,4 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     // Project 7: pop segment i, push segment i
     //Suggested to write out // push/pop command at top.
   }
-
-  void close() {
-    //close output file
-  }
 }
