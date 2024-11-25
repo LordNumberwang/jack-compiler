@@ -1,4 +1,4 @@
-package me.lordnumberwang.jackcompiler;
+package me.lordnumberwang.vmcompiler;
 
 import java.io.IOException;
 import org.junit.jupiter.api.Test;

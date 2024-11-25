@@ -13,7 +13,7 @@ dependencies {
 }
 
 application {
-    mainClass = "me.lordnumberwang.jackcompiler.Main"
+    mainClass = "me.lordnumberwang.vmcompiler.VmCompiler"
 }
 
 group = "me.lordnumberwang"
@@ -21,7 +21,7 @@ version = "0.1"
 
 tasks.named<Jar>("jar") {
     manifest {
-        attributes["Main-Class"] = "me.lordnumberwang.jackcompiler.Main"
+        attributes["Main-Class"] = "me.lordnumberwang.vmcompiler.VmCompiler"
     }
 }
 
