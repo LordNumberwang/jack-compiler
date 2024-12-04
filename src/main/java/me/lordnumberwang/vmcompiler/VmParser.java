@@ -17,7 +17,12 @@ public class VmParser implements Parser<VmCommand> {
     return switch (commandString) {
       case "push" -> Command.C_PUSH;
       case "pop" -> Command.C_POP;
-      case "add", "sub", "neg", "eq", "gt", "lt" -> Command.C_ARITHMETIC;
+      case "add" -> Command.C_ARITHMETIC; //writing out each case for clarity
+      case "sub" -> Command.C_ARITHMETIC;
+      case "neg" -> Command.C_ARITHMETIC;
+      case "eq" -> Command.C_ARITHMETIC;
+      case "gt" -> Command.C_ARITHMETIC;
+      case "lt" -> Command.C_ARITHMETIC;
       default ->
           null;
     };
@@ -49,22 +54,19 @@ public class VmParser implements Parser<VmCommand> {
     if (tokens.length > 1) {
       args = Arrays.copyOfRange(tokens,1,tokens.length);
     }
-
-    VmCommand nextCommand = new VmCommand(cmd, args);
-    //normalize to lower case
-    return nextCommand;
+    return new VmCommand(cmd, args, line);
   }
 
   private String[] getCommandArgs(Command command, String[] tokens) {
     return switch (command) {
-      case Command.C_ARITHMETIC -> new String[]{ tokens[0] };
+      case Command.C_ARITHMETIC -> Arrays.copyOfRange(tokens, 0, tokens.length);
       case Command.C_PUSH, Command.C_POP -> Arrays.copyOfRange(tokens, 1, tokens.length);
       case Command.C_CALL, Command.C_FUNCTION -> null; //TODO implement later
       case Command.C_RETURN -> null; //TODO implement later
       case Command.C_LABEL, Command.C_GOTO, Command.C_IF -> null; //TODO implement later
       default -> null;
       //throw new IllegalArgumentException("");
-      // throw errors later, when compiler handles all valid functions
+      //throw errors later, when compiler handles all valid commands
     };
   }
 }

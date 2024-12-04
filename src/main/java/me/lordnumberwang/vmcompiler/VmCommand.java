@@ -10,10 +10,12 @@ public class VmCommand {
   }
   Command command;
   String[] args;
+  String cmd_string;
 
-  VmCommand(Command command, String[] args) {
+  VmCommand(Command command, String[] args, String cmd_str) {
     this.command = command;
     this.args = args;
+    this.cmd_string = cmd_str;
   }
 
   public Command getCommand() {
@@ -30,5 +32,10 @@ public class VmCommand {
 
   public void setArgs(String[] args) {
     this.args = args;
+  }
+
+  @Override
+  public String toString() {
+    return command.toString() + String.join(" ", args);
   }
 }

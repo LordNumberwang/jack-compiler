@@ -54,7 +54,7 @@ public class VmCompiler implements Compiler {
     try (BufferedReader reader = Files.newBufferedReader(inputPath)) {
       codeWriter.write(parser.parse(reader.lines()), outputPath);
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Failed to write file");
     }
   }
 
