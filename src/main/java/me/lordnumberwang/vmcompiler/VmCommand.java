@@ -36,6 +36,6 @@ public class VmCommand {
 
   @Override
   public String toString() {
-    return command.toString() + String.join(" ", args);
+    return command.toString() + " " + String.join(" ", args);
   }
 }

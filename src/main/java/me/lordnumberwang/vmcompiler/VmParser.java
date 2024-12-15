@@ -23,8 +23,11 @@ public class VmParser implements Parser<VmCommand> {
       case "eq" -> Command.C_ARITHMETIC;
       case "gt" -> Command.C_ARITHMETIC;
       case "lt" -> Command.C_ARITHMETIC;
+      case "and" -> Command.C_ARITHMETIC;
+      case "or" -> Command.C_ARITHMETIC;
+      case "not" -> Command.C_ARITHMETIC;
       default ->
-          null;
+          throw new IllegalArgumentException("Unknown command type: " + commandString);
     };
     // throw new IllegalArgumentException("");
     // throw errors later, when compiler handles all valid functions
