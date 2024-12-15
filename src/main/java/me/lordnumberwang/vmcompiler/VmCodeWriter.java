@@ -287,26 +287,81 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     switch (segment) {
       case "local":
         //based on pointer LCL (RAM[1])
+        writer.write("@"+index);
+        writer.write("D=A");
+        //Update LCL to index+LCL value
+        writer.write("@1");
+        writer.write("M=D+M");
+
+        //Set D to value from stack
         popFromStack(writer);
         writer.write("@1");
-        //TODO figure out how to keep D set (from popFromStack), yet move to LCL+index.
-//        writer.write("@"+index);
-//        writer.write("D=A");
-//        writer.write("@1");
-//        writer.write("A=D+M");
-//        writer.write("D=M");
-
-
+        writer.write("A=M");
         writer.write("M=D");
+
+        //set LCL back to LCL-index
+        writer.write("@"+index);
+        writer.write("D=A");
+        writer.write("@1");
+        writer.write("M=M-D");
       case "argument":
         //based on pointer ARG (RAM[2])
+        writer.write("@"+index);
+        writer.write("D=A");
+        //Update ARG to index+ARG value
+        writer.write("@2");
+        writer.write("M=D+M");
+
+        //Set D to value from stack
         popFromStack(writer);
+        writer.write("@2");
+        writer.write("A=M");
+        writer.write("M=D");
+
+        //set ARG back to ARG-index
+        writer.write("@"+index);
+        writer.write("D=A");
+        writer.write("@2");
+        writer.write("M=M-D");
       case "this":
         //based on pointer THIS (RAM[3])
+        writer.write("@"+index);
+        writer.write("D=A");
+        //Update THIS to index+ARG value
+        writer.write("@3");
+        writer.write("M=D+M");
+
+        //Set D to value from stack
         popFromStack(writer);
+        writer.write("@3");
+        writer.write("A=M");
+        writer.write("M=D");
+
+        //set THIS back to THIS-index
+        writer.write("@"+index);
+        writer.write("D=A");
+        writer.write("@3");
+        writer.write("M=M-D");
       case "that":
         //based on pointer THAT (RAM[4])
         popFromStack(writer);
+        writer.write("@"+index);
+        writer.write("D=A");
+        //Update THAT to index+THAT value
+        writer.write("@4");
+        writer.write("M=D+M");
+
+        //Set D to value from stack
+        popFromStack(writer);
+        writer.write("@4");
+        writer.write("A=M");
+        writer.write("M=D");
+
+        //set ARG back to ARG-index
+        writer.write("@"+index);
+        writer.write("D=A");
+        writer.write("@4");
+        writer.write("M=M-D");
       case "constant":
         throw new IOException("Invalid command - attempt to pop to constant register");
       case "static":
