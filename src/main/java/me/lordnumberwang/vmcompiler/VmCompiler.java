@@ -1,12 +1,15 @@
 package me.lordnumberwang.vmcompiler;
 
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import me.lordnumberwang.*;
+import java.util.*;
 import me.lordnumberwang.Compiler;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Files;
-import java.util.Objects;
-import me.lordnumberwang.*;
+import java.nio.file.*;
+import java.net.URISyntaxException;
+import java.net.URL;
 
 public class VmCompiler implements Compiler {
   private final Parser<VmCommand> parser;
@@ -23,27 +26,91 @@ public class VmCompiler implements Compiler {
    * Side effects:
    *   Compiled output files returned in "/path/to/filename.asm /path/to/another/filename2.asm"
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws URISyntaxException {
     /*
     construct parser to handle input file
     construct codewriter to handle output file
     march through input file and parse each line and generate code from it.
     */
+    // e.g. "/input" directory or "/input/myfile.vm"
+    if (args.length < 1) {
+      System.out.println("Error - no input directory given");
+      return;
+    }
 
     int filesProcessed = 0;
     Parser<VmCommand> parser = new VmParser();
     CodeWriter<VmCommand> codeWriter = new VmCodeWriter();
     VmCompiler compiler = new VmCompiler(parser, codeWriter);
 
-    for (String aFilename : args) {
-      //Processing a single file
-      Path inputPath = Path.of(aFilename);
-      if (compiler.isValidFiletype(inputPath)) {
-        compiler.compile(inputPath);
-        filesProcessed++;
+    try {
+      List<Path> vmFiles = getVmFiles(args[0]);
+      Path firstFile = vmFiles.getFirst();
+      String projectName;
+      //probably want to use resolveSibling()
+      if (vmFiles.toArray().length > 1) {
+        //Handle folder case
+        projectName = firstFile.getName(firstFile.getNameCount()-2).toString();
+      } else {
+        //Handle single file case
+        projectName = firstFile.getName(firstFile.getNameCount()-1).toString().replace(".vm","");
+      }
+      Path outFile = Paths.get("src", "main", "resources", "output", projectName + ".asm");
+      System.out.println("Compiling VM Files");
+      for (Path vmFile : vmFiles) {
+        System.out.println("Compiling file: " + vmFile.toString());
+        //Compile file here
+        compiler.compile(vmFile, outFile);
+        System.out.printf(filesProcessed + " file(s) processed.");
+      }
+    } catch (Exception e) {
+      System.err.println("Error: " + e.getMessage());
+    }
+  }
+
+  private static List<Path> getVmFiles(String inputPathString) throws IOException {
+    URL url = VmCompiler.class.getClassLoader().getResource(inputPathString);
+    if (url == null) {
+      throw new IOException("Resource not found: " + inputPathString);
+    }
+
+    Path inPath;
+    try {
+      if (url.getProtocol().equals("jar")) {
+        FileSystem fs = FileSystems.newFileSystem(url.toURI(), java.util.Collections.emptyMap());
+        inPath = fs.getPath(inputPathString);
+      } else {
+        inPath = Paths.get(url.toURI());
+      }
+    } catch (URISyntaxException e) {
+      throw new IOException("Unable to convert filepath URI: "+url.toString());
+    }
+
+    //Handle .VM single file
+    if (Files.isRegularFile(inPath)) {
+      //Check if single file is VM
+      if (inPath.toString().endsWith(".vm")) {
+        return List.of(inPath);
+      } else {
+        throw new IllegalArgumentException("Passed invalid filetype: " + inPath);
       }
     }
-    System.out.printf(filesProcessed + " file(s) processed.");
+
+    //Handle directory
+    if (Files.isDirectory(inPath)) {
+      try (Stream<Path> walk = Files.walk(inPath)) {
+        List<Path> vmFiles = walk
+            .filter(Files::isRegularFile)
+            .filter(p -> p.toString().endsWith(".vm"))
+            .toList();
+
+        if (vmFiles.isEmpty()) {
+          throw new IllegalArgumentException("No VM files found in directory: " + inPath);
+        }
+        return vmFiles;
+      }
+    }
+    throw new IllegalArgumentException("Path is neither file nor directory: " + inPath);
   }
 
   /**
@@ -56,32 +123,5 @@ public class VmCompiler implements Compiler {
     } catch (IOException e) {
       throw new RuntimeException("Failed to write file");
     }
-  }
-
-  public void compile(Path inputPath) {
-    compile(inputPath, getOutputPath(inputPath));
-  }
-
-  @Override
-  public boolean isValidFiletype(Path inputPath) {
-    //Check if .vm file...
-    if (Files.isReadable(inputPath)) {
-      Path infile = inputPath.getName(inputPath.getNameCount() - 1);
-      String[] infileName = infile.toString().split("[.]");
-      if (infileName.length < 2 || !Objects.equals(infileName[1], "vm")) {
-        System.out.println("Invalid filetype for: " + inputPath.getFileName());
-        return false;
-      }
-      return true;
-    } else {
-      System.out.println("Unable to access file: " + inputPath.getFileName());
-      return false;
-    }
-  }
-
-  private Path getOutputPath(Path inputPath) {
-    Path infile = inputPath.getName(inputPath.getNameCount() - 1);
-    String[] infileName = infile.toString().split("[.]");
-    return inputPath.getParent().resolve(infileName[0] + ".asm");
   }
 }

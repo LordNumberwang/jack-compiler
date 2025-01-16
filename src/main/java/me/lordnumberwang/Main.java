@@ -12,17 +12,27 @@ public class Main {
 
   /**
    *
-   * @param args - List of arguments intended to contain filepaths to .vm files
+   * @param args - List of arguments intended to contain filepaths to a folder of .vm files
+   *               or a single .vm file
    * @throws IOException
    */
   public static void main(String[] args) throws IOException {
-    //input: space delimited string of "/path/to/filename.vm /path/toanother/filename2.vm"
+    //input: EITHER
+    // A single .* file (e.g. .vm, .)
+    // space delimited string of "/path/to/filename.vm /path/toanother/filename2.vm"
+    // OR
+    // A folder containing
     //output: files returned in "/path/to/filename.asm /path/toanother/filename2.asm"
     /*
     construct parser to handle input file
     construct codewriter to handle output file
     march through input file and parse each line and generate code from it.
      */
+
+    // Changing the format of this Main to be a true entrypoint for all (both) compilers.
+    //
+
+    //Handle args:
 
     int filesProcessed = 0;
     for (String aFilename : args) {

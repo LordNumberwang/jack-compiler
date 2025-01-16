@@ -11,11 +11,4 @@ public interface Compiler {
    * @param outputPath
    */
   void compile(Path inputPath, Path outputPath);
-
-  /**
-   * isValidFiletype - Validation for whether the input file has the right extension
-   * @param inputPath
-   * @return
-   */
-  boolean isValidFiletype(Path inputPath);
 }

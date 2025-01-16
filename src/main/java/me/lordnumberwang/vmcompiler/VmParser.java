@@ -26,6 +26,12 @@ public class VmParser implements Parser<VmCommand> {
       case "and" -> Command.C_ARITHMETIC;
       case "or" -> Command.C_ARITHMETIC;
       case "not" -> Command.C_ARITHMETIC;
+      case "goto" -> Command.C_GOTO;
+      case "if-goto" -> Command.C_IF;
+      case "label" -> Command.C_LABEL;
+      case "call" -> Command.C_CALL;
+      case "function" -> Command.C_FUNCTION;
+      case "return" -> Command.C_RETURN;
       default ->
           throw new IllegalArgumentException("Unknown command type: " + commandString);
     };
@@ -67,9 +73,7 @@ public class VmParser implements Parser<VmCommand> {
       case Command.C_CALL, Command.C_FUNCTION -> null; //TODO implement later
       case Command.C_RETURN -> null; //TODO implement later
       case Command.C_LABEL, Command.C_GOTO, Command.C_IF -> null; //TODO implement later
-      default -> null;
-      //throw new IllegalArgumentException("");
-      //throw errors later, when compiler handles all valid commands
+      default -> throw new IllegalArgumentException("Illegal operation " + command.toString());
     };
   }
 }
