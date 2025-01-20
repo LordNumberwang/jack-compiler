@@ -57,7 +57,7 @@ public class VmCompiler implements Compiler {
       }
       Path outFile = Paths.get("src", "main", "resources", "output", projectName + ".asm");
       System.out.println("Compiling VM Files");
-      //TODO add bootstrap code?
+      //TODO Add bootstrap code?
       // SP = 256
       // call Sys.init
       for (Path vmFile : vmFiles) {

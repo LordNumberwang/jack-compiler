@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.stream.Stream;
 import me.lordnumberwang.CodeWriter;
 import java.nio.file.Files;
@@ -123,6 +124,19 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     } catch (NumberFormatException e) {
       // Handle unparsable integer value
       throw new IOException("Invalid index passed to push/pop: " + args[1]);
+    }
+  }
+
+  /*
+    Utility function alternative to writing push/pop with command, segment and index only.
+   */
+  void writePushPop(String cmd, String segment, int index) throws IOException {
+    if (Objects.equals(cmd, "push")) {
+      writePush(segment, index);
+    } else if (Objects.equals(cmd, "pop")) {
+      writePop(segment, index);
+    } else {
+      throw new IOException("Passed invalid push/pop command from compiler");
     }
   }
 
@@ -520,15 +534,60 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
 
     // return
     write("//" + cmd);
-    //TODO
-    // 1. Copy return to arg 0 => how to get this from className.fName$ret.i? => Assembler does it automatically
-    // QUESTION: how to save named vars?
-    // 2. Restore segment pnt of callers (LCL, ARG, THIS, THAT)
-    // 3. Clear stack
-    // 4. Set SP for caller
-    // 5. Jump to return address within caller's code (via GOTO className.fName$ret.i?)
-
-    // 1. Save LCL to temp variable endFrame (temp 1)
+    // 1. Save LCL to temp variable endFrame (temp 1 and temp 2 )
+    write("@1");
+    write("D=M");
+    write("@6"); //@temp 1
+    write("M=D"); //endFrame variable stored
+    // 2. Get return address, save to temp 2
+    write("@5"); //const 5, D still endFrame value
+    write("A=D-A"); // @(endFrame-5)
+    write("D=M"); // D= return address
+    write("@7"); //@temp 2
+    write("M=D"); //return address stored
+    // 3. Reposition return value for caller, *ARG = pop()
+    popFromStack(); //D = return value
+    write("@2");
+    write("A=M");
+    write("M=D"); //calling writePushPop("pop", 0) less efficient due to int = 0
+    // 4. Reposition SP=ARG+1
+    write("D=A+1"); //A still = ARG value
+    write("@0");
+    write("M=D"); //Set SP to ARG+1
+    // 5. Reposition THAT = *(endFrame-1)
+    write("@6"); //@temp1
+    write("A=M-1"); //@(endFrame-1)
+    write("D=M"); // D = *(endFrame-1)
+    write("@4"); //THAT
+    write("M=D");
+    // 6. Reposition THIS = *(endFrame-2)
+    write("@2");
+    write("D=A"); //D=2
+    write("@6"); //@temp1
+    write("A=M-D"); //@(endFrame-2)
+    write("D=M"); // D=*(endFrame-2)
+    write("@3"); //THIS
+    write("M=D");
+    // 7. Reposition ARG = *(endFrame-3)
+    write("@3");
+    write("D=A");
+    write("@6"); //@temp1
+    write("A=M-D"); //@(endFrame-3)
+    write("D=M"); // D=*(endFrame-3)
+    write("@2"); //ARG
+    write("M=D");
+    // 8. Reposition LCL = *(endFrame-4)
+    write("@4");
+    write("D=A");
+    write("@6"); //@temp1
+    write("A=M-D"); //@(endFrame-4)
+    write("D=M"); // D=*(endFrame-4)
+    write("@1"); //LCL
+    write("M=D");
+    // 9. FINALLY jump to retrAddr (goto retAddr => @temp2)
+    write("@7"); //@temp 2
+    write("A=M");
+    write("0;JMP"); //GOTO retAddr
   }
 
   /*
