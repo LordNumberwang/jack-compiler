@@ -35,13 +35,6 @@ public class VmParser implements Parser<VmCommand> {
       default ->
           throw new IllegalArgumentException("Unknown command type: " + commandString);
     };
-    // throw new IllegalArgumentException("");
-    // throw errors later, when compiler handles all valid functions
-    /**
-     * case Command.C_CALL, Command.C_FUNCTION -> null; //TODO implement later
-     *       case Command.C_RETURN -> null; //TODO implement later
-     *       case Command.C_LABEL, Command.C_GOTO, Command.C_IF -> null; //TODO implement later
-     */
   }
 
   @Override
@@ -68,11 +61,17 @@ public class VmParser implements Parser<VmCommand> {
 
   private String[] getCommandArgs(Command command, String[] tokens) {
     return switch (command) {
-      case Command.C_ARITHMETIC -> Arrays.copyOfRange(tokens, 0, tokens.length);
-      case Command.C_PUSH, Command.C_POP -> Arrays.copyOfRange(tokens, 1, tokens.length);
-      case Command.C_CALL, Command.C_FUNCTION -> null; //TODO implement later
-      case Command.C_RETURN -> null; //TODO implement later
-      case Command.C_LABEL, Command.C_GOTO, Command.C_IF -> null; //TODO implement later
+      case Command.C_ARITHMETIC ->
+          Arrays.copyOfRange(tokens, 0, tokens.length); //includes function name
+      case Command.C_PUSH, Command.C_POP ->
+          Arrays.copyOfRange(tokens, 1, tokens.length);
+      //goto label, if-goto label, label label
+      case Command.C_LABEL, Command.C_GOTO, Command.C_IF ->
+          Arrays.copyOfRange(tokens, 1,tokens.length);
+      //call fName nArgs, function fName nVars
+      case Command.C_CALL, Command.C_FUNCTION ->
+          Arrays.copyOfRange(tokens, 1,tokens.length);
+      case Command.C_RETURN -> new String[0]; //no args
       default -> throw new IllegalArgumentException("Illegal operation " + command.toString());
     };
   }

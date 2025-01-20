@@ -45,7 +45,7 @@ public class VmCodeWriterTest {
     Stream<String> lines = Files.lines(filePath1);
     Parser parser = new VmParser();
     Stream<VmCommand> commands = parser.parse(lines);
-    subject.write(commands, outfile);
+    subject.write(commands, "SimpleAdd", outfile);
     VmCommand[] cmds = commands.toArray(VmCommand[]::new);
   }
 

@@ -2,9 +2,8 @@ package me.lordnumberwang.vmcompiler;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.Buffer;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 import me.lordnumberwang.CodeWriter;
 import java.nio.file.Files;
@@ -21,105 +20,105 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
   // Branching and Function commands
   // label label, goto label, if-goto label
   // function functionName nVars, call functionName nArgs, return
-  int loopCtr; //used to generate a unique ID for a loop to avoid collisions
-  String fileName;
+  int loopCtr = 0; //used to generate a unique ID for a loop to avoid collisions
+  String className;
+  String funcName;
+  int returnCtr = 0; //counter for return addresses within functions
+  BufferedWriter outfileWriter;
 
-  VmCodeWriter() {
-    loopCtr = 0;
-  }
+  VmCodeWriter() {}
 
   /**
-   * @param commands
-   * @param outfile
+   * @param commands -
+   * @param className - String of class name (taken from name of current file)
+   * @param outfile -
    */
   @Override
-  public void write(Stream<VmCommand> commands, Path outfile) throws IOException {
-    try (BufferedWriter writer = Files.newBufferedWriter(outfile)) {
-      Path outfileName = outfile.getName(outfile.getNameCount() - 1);
-      this.fileName = outfileName.toString().split("[.]")[0];
+  public void write(Stream<VmCommand> commands, String className, Path outfile) throws IOException {
+    try (BufferedWriter writer = Files.newBufferedWriter(outfile,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.APPEND)) {
+      //Create file if not present, append otherwise
+      this.className = className;
+      //Normalize to Camelcase
+      this.funcName = ""; //default to empty function
+      this.outfileWriter = writer;
+
       commands.forEach(cmd -> {
         //line by line parser code
         try {
           switch(cmd.command) {
-            case C_ARITHMETIC -> writeArithmetic(writer, cmd);
-            case C_POP, C_PUSH -> writePushPop(writer, cmd);
+            case C_ARITHMETIC -> writeArithmetic(cmd);
+            case C_POP, C_PUSH -> writePushPop(cmd);
+            case C_LABEL, C_GOTO, C_IF -> writeBranching(cmd);
+            case C_CALL -> writeCall(cmd);
+            case C_FUNCTION -> writeFunction(cmd);
+            case C_RETURN -> writeReturn(cmd);
             //case C_CALL, C_FUNCTION, C_GOTO, C_IF, C_LABEL, C_RETURN -> writeIf();
           }
         } catch (IOException e) {
-          throw new RuntimeException("Unable to write line: " + cmd.toString());
+          throw new RuntimeException("Unable to write line: " + cmd);
         }
       });
     }
   }
 
-  /**
-   *
-   * @param writer
-   * @param command
-   * @throws IOException
-   */
-  void writeArithmetic(BufferedWriter writer, VmCommand command) throws IOException {
+  void writeArithmetic(VmCommand command) throws IOException {
     if (command.args.length != 1) {
       throw new IOException("Attempted to process invalid command");
     }
-    write(writer,"//" + command.toString()); //write out comment form of string command
+    write("//" + command); //write out comment form of string command
     switch (command.args[0].toLowerCase()) {
       case "add":
-        writeAdd(writer);
+        writeAdd();
         break;
       case "sub":
-        writeSub(writer);
+        writeSub();
         break;
       case "neg":
-        write(writer,"@0");
-        write(writer,"A=M-1");
-        write(writer,"M=-M");
+        write("@0");
+        write("A=M-1");
+        write("M=-M");
         break;
       case "eq":
-        writeEq(writer);
+        writeEq();
         break;
       case "gt":
-        writeGt(writer);
+        writeGt();
         break;
       case "lt":
-        writeLt(writer);
+        writeLt();
         break;
       case "and":
-        writeAnd(writer);
+        writeAnd();
         break;
       case "or":
-        writeOr(writer);
+        writeOr();
         break;
       case "not":
-        write(writer,"@0");
-        write(writer,"A=M-1");
-        write(writer,"M=!M");
+        write("@0");
+        write("A=M-1");
+        write("M=!M");
         break;
       case "default":
-        write(writer, "FAIL");
+        write( "FAIL");
         //dun goofed
     }
   }
 
-  /**
-   *
-   * @param writer -
-   * @param command -
-   * @throws IOException - if for some reason invalid.
-   */
-  void writePushPop(BufferedWriter writer, VmCommand command) throws IOException {
+  void writePushPop(VmCommand command) throws IOException {
     String[] args = command.args;
     if (args.length != 2) {
       throw new IOException("Attempted to process invalid command - "
           + "wrong number of arguments to a pop/push command");
     }
-    write(writer,"//" + command.toString());
+    write("//" + command);
     try {
       int bufferIndex = Integer.parseInt(args[1]);
       if (command.command == Command.C_PUSH) {
-        writePush(writer, args[0].toLowerCase(), bufferIndex);
+        writePush(args[0].toLowerCase(), bufferIndex);
       } else if (command.command == Command.C_POP) {
-        writePop(writer, args[0].toLowerCase(), bufferIndex);
+        writePop(args[0].toLowerCase(), bufferIndex);
       }
     } catch (NumberFormatException e) {
       // Handle unparsable integer value
@@ -127,162 +126,162 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     }
   }
 
-  void writeAdd(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D+M");
+  void writeAdd() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("M=D+M");
   }
 
-  void writeSub(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=M-D");
+  void writeSub() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("M=M-D");
   }
 
-  void writeEq(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"D=M-D");
-    write(writer,"@VMLOOP" + loopCtr);
-    write(writer,"D;JEQ");
-    write(writer,"D=0");
-    write(writer,"@VMLOOPEND" + loopCtr);
-    write(writer,"0;JMP");
-    write(writer,"(VMLOOP" + loopCtr + ")");
-    write(writer,"D=-1");
-    write(writer,"(VMLOOPEND" + loopCtr + ")");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D");
+  void writeEq() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("D=M-D");
+    write("@VMLOOP" + loopCtr);
+    write("D;JEQ");
+    write("D=0");
+    write("@VMLOOPEND" + loopCtr);
+    write("0;JMP");
+    write("(VMLOOP" + loopCtr + ")");
+    write("D=-1");
+    write("(VMLOOPEND" + loopCtr + ")");
+    write("@0");
+    write("A=M-1");
+    write("M=D");
     loopCtr++;
   }
 
-  void writeGt(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"D=M-D");
-    write(writer,"@VMLOOP" + loopCtr);
-    write(writer,"D;JGT");
-    write(writer,"D=0");
-    write(writer,"@VMLOOPEND" + loopCtr);
-    write(writer,"0;JMP");
-    write(writer,"(VMLOOP" + loopCtr + ")");
-    write(writer,"D=-1");
-    write(writer,"(VMLOOPEND" + loopCtr + ")");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D");
+  void writeGt() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("D=M-D");
+    write("@VMLOOP" + loopCtr);
+    write("D;JGT");
+    write("D=0");
+    write("@VMLOOPEND" + loopCtr);
+    write("0;JMP");
+    write("(VMLOOP" + loopCtr + ")");
+    write("D=-1");
+    write("(VMLOOPEND" + loopCtr + ")");
+    write("@0");
+    write("A=M-1");
+    write("M=D");
     loopCtr++;
   }
 
-  void writeLt(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"D=M-D");
-    write(writer,"@VMLOOP" + loopCtr);
-    write(writer,"D;JLT");
-    write(writer,"D=0");
-    write(writer,"@VMLOOPEND" + loopCtr);
-    write(writer,"0;JMP");
-    write(writer,"(VMLOOP" + loopCtr + ")");
-    write(writer,"D=-1");
-    write(writer,"(VMLOOPEND" + loopCtr + ")");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D");
+  void writeLt() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("D=M-D");
+    write("@VMLOOP" + loopCtr);
+    write("D;JLT");
+    write("D=0");
+    write("@VMLOOPEND" + loopCtr);
+    write("0;JMP");
+    write("(VMLOOP" + loopCtr + ")");
+    write("D=-1");
+    write("(VMLOOPEND" + loopCtr + ")");
+    write("@0");
+    write("A=M-1");
+    write("M=D");
     loopCtr++;
   }
 
-  void writeAnd(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D&M");
+  void writeAnd() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("M=D&M");
   }
 
-  void writeOr(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
-    write(writer,"@0");
-    write(writer,"A=M-1");
-    write(writer,"M=D|M");
+  void writeOr() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+    write("@0");
+    write("A=M-1");
+    write("M=D|M");
   }
 
-  void writePush(BufferedWriter writer, String segment, int index) throws IOException {
+  void writePush(String segment, int index) throws IOException {
     //https://www.coursera.org/learn/nand2tetris2/lecture/lqz8H/unit-1-5-vm-implementation-memory-segments
     switch (segment) {
       case "local":
         //based on pointer LCL (RAM[1])
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@1");
-        write(writer,"A=D+M");
-        write(writer,"D=M");
+        write("@"+index);
+        write("D=A");
+        write("@1");
+        write("A=D+M");
+        write("D=M");
         //set D to value to push
-        pushToStack(writer);
+        pushToStack();
         break;
       case "argument":
         //based on pointer ARG (RAM[2])
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@2");
-        write(writer,"A=D+M");
-        write(writer,"D=M");
+        write("@"+index);
+        write("D=A");
+        write("@2");
+        write("A=D+M");
+        write("D=M");
         //set D to value to push
-        pushToStack(writer);
+        pushToStack();
         break;
       case "this":
         //based on pointer THIS (RAM[3])
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@3");
-        write(writer,"A=D+M");
-        write(writer,"D=M");
-        pushToStack(writer);
+        write("@"+index);
+        write("D=A");
+        write("@3");
+        write("A=D+M");
+        write("D=M");
+        pushToStack();
         break;
       case "that":
         //based on pointer THAT (RAM[4])
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@4");
-        write(writer,"A=D+M");
-        write(writer,"D=M");
-        pushToStack(writer);
+        write("@"+index);
+        write("D=A");
+        write("@4");
+        write("A=D+M");
+        write("D=M");
+        pushToStack();
         break;
       case "constant":
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        pushToStack(writer);
+        write("@"+index);
+        write("D=A");
+        pushToStack();
         break;
       case "static":
         //Register to assigned location of @file's name and '.i'
-        write(writer,"@" + fileName + "." + index); //@file.index
-        write(writer,"D=M");
-        pushToStack(writer);
+        write("@" + className + "." + index); //@file.index
+        write("D=M");
+        pushToStack();
         break;
       case "temp":
         //fixed 8 length segment. i.e. 5+i (where i max of 0-7)
-        write(writer,"@" + (5+index));
-        write(writer,"D=M");
-        pushToStack(writer);
+        write("@" + (5+index));
+        write("D=M");
+        pushToStack();
         break;
       case "pointer":
         //base address of 'this'/'that' segment. i=0/1
@@ -292,141 +291,267 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
         }
         //*SP=THIS/THAT, SP++
         if (index == 0) {
-          write(writer,"@3");
+          write("@3");
         } else if (index == 1) {
-          write(writer,"@4");
+          write("@4");
         }
-        write(writer,"D=M");
-        pushToStack(writer);
+        write("D=M");
+        pushToStack();
         break;
     }
   }
 
-  void writePop(BufferedWriter writer, String segment, int index) throws IOException {
+  void writePop(String segment, int index) throws IOException {
     switch (segment) {
       case "local":
         //based on pointer LCL (RAM[1])
-        write(writer,"@"+index);
-        write(writer,"D=A");
+        write("@"+index);
+        write("D=A");
         //Update LCL to index+LCL value
-        write(writer,"@1");
-        write(writer,"M=D+M");
+        write("@1");
+        write("M=D+M");
 
         //Set D to value from stack
-        popFromStack(writer);
-        write(writer,"@1");
-        write(writer,"A=M");
-        write(writer,"M=D");
+        popFromStack();
+        write("@1");
+        write("A=M");
+        write("M=D");
 
         //set LCL back to LCL-index
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@1");
-        write(writer,"M=M-D");
+        write("@"+index);
+        write("D=A");
+        write("@1");
+        write("M=M-D");
         break;
       case "argument":
         //based on pointer ARG (RAM[2])
-        write(writer,"@"+index);
-        write(writer,"D=A");
+        write("@"+index);
+        write("D=A");
         //Update ARG to index+ARG value
-        write(writer,"@2");
-        write(writer,"M=D+M");
+        write("@2");
+        write("M=D+M");
 
         //Set D to value from stack
-        popFromStack(writer);
-        write(writer,"@2");
-        write(writer,"A=M");
-        write(writer,"M=D");
+        popFromStack();
+        write("@2");
+        write("A=M");
+        write("M=D");
 
         //set ARG back to ARG-index
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@2");
-        write(writer,"M=M-D");
+        write("@"+index);
+        write("D=A");
+        write("@2");
+        write("M=M-D");
         break;
       case "this":
         //based on pointer THIS (RAM[3])
-        write(writer,"@"+index);
-        write(writer,"D=A");
+        write("@"+index);
+        write("D=A");
         //Update THIS to index+ARG value
-        write(writer,"@3");
-        write(writer,"M=D+M");
+        write("@3");
+        write("M=D+M");
 
         //Set D to value from stack
-        popFromStack(writer);
-        write(writer,"@3");
-        write(writer,"A=M");
-        write(writer,"M=D");
+        popFromStack();
+        write("@3");
+        write("A=M");
+        write("M=D");
 
         //set THIS back to THIS-index
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@3");
-        write(writer,"M=M-D");
+        write("@"+index);
+        write("D=A");
+        write("@3");
+        write("M=M-D");
         break;
       case "that":
         //based on pointer THAT (RAM[4])
-        write(writer,"@"+index);
-        write(writer,"D=A");
+        write("@"+index);
+        write("D=A");
         //Update THIS to index+ARG value
-        write(writer,"@4");
-        write(writer,"M=D+M");
+        write("@4");
+        write("M=D+M");
 
         //Set D to value from stack
-        popFromStack(writer);
-        write(writer,"@4");
-        write(writer,"A=M");
-        write(writer,"M=D");
+        popFromStack();
+        write("@4");
+        write("A=M");
+        write("M=D");
 
         //set THAT back to THAT-index
-        write(writer,"@"+index);
-        write(writer,"D=A");
-        write(writer,"@4");
-        write(writer,"M=M-D");
+        write("@"+index);
+        write("D=A");
+        write("@4");
+        write("M=M-D");
         break;
       case "constant":
         throw new IOException("Invalid command - attempt to pop to constant register");
       case "static":
-        popFromStack(writer);
-        write(writer,"@" + fileName + "." + index);
-        write(writer,"M=D");
+        popFromStack();
+        write("@" + className + "." + index);
+        write("M=D");
         break;
       case "temp":
-        popFromStack(writer);
-        write(writer,"@" + (5+index));
-        write(writer,"M=D");
+        popFromStack();
+        write("@" + (5+index));
+        write("M=D");
         break;
       case "pointer":
         if (index > 1) {
           throw new IOException("Invalid (value>1) pointer location: " + index);
         }
         //*SP=THIS/THAT, SP++
-        popFromStack(writer);
+        popFromStack();
         if (index == 0) {
-          write(writer,"@3");
+          write("@3");
         } else if (index == 1) {
-          write(writer,"@4");
+          write("@4");
         }
-        write(writer,"M=D");
+        write("M=D");
         break;
     }
   }
 
-  void pushToStack(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"M=M+1");
-    write(writer,"A=M-1");
-    write(writer,"M=D");
+  void writeBranching(VmCommand cmd) throws IOException {
+    String[] args = cmd.args;
+    if (args.length != 1) {
+      throw new IOException("Wrong number of arguments to a branching command: ");
+    }
+    String label = className + "." + funcName + "$" + args[0];
+    write("//" + cmd);
+    switch (cmd.command) {
+      case Command.C_LABEL:
+        write("(" + label + ")");
+        break;
+      case Command.C_GOTO:
+        write("@"+label);
+        write("0;JMP");
+        break;
+      case Command.C_IF:
+        popFromStack(); //write to condition to D
+        //if cond, jump to execute command just after label
+        write("@"+label);
+        write("D;JNE"); //jump if D != 0
+        break;
+    }
   }
 
-  void popFromStack(BufferedWriter writer) throws IOException {
-    write(writer,"@0");
-    write(writer,"AM=M-1");
-    write(writer,"D=M");
+  void writeFunction(VmCommand cmd) throws IOException {
+    String[] args = cmd.args;
+    // need function name and number of local vars
+    if (args.length != 2) {
+      throw new IOException("Wrong number of arguments to function call");
+    }
+    this.returnCtr = 0; //reset call/return counter
+    this.funcName = args[0]; //set funcName
+    int nVars = Integer.parseInt(args[1]); //number of local vars
+    // function fName nVars
+    write("//" + cmd);
+
+    // 1. Write label to function entry (Xxx.foo / className.funcName;
+    String label = className + "." + funcName;
+    write("(" + label + ")");
+
+    // 2. Push nVars amount of 0s.
+    // Assumes we start SP=LCL (@0 = @1)
+    write("@1");
+    write("M=D");
+    write("D=0");
+    for (int i=0; i<nVars; i++) {
+      //Write constant 0 to LCL i
+      pushToStack();
+      //LCL pointer unchanged, SP incremented by nVars
+    }
   }
 
-  void write(BufferedWriter writer, String str) throws IOException {
-    writer.write(str);
-    writer.newLine();
+  void writeCall(VmCommand cmd) throws IOException {
+    String[] args = cmd.args;
+    // need function name and number of arguments
+    if (args.length != 2) {
+      throw new IOException("Wrong number of arguments to function call");
+    }
+    String fName = args[0];
+    int numArgs = Integer.parseInt(args[1]);
+
+    // call fName nArgs
+    write("//" + cmd);
+
+    //1. Save caller frame: (return address, savedLCL, saved ARG, saved THIS, saved THAT)
+    //Write return address label: className+"."+funcName+"$ret."+i => MyClass.currentFunc$ret.0
+    write(className + "." + funcName + "$ret." + returnCtr); //save return address value
+    write("@1");
+    write("D=M");
+    pushToStack(); //Save LCL
+    write("@2");
+    write("D=M");
+    pushToStack(); //Save ARG
+    write("@3");
+    write("D=M");
+    pushToStack(); //Save THIS
+    write("@4");
+    write("D=M");
+    pushToStack(); //Save THAT
+    //2. Set Arg pointer by SP-(5+numArgs)
+    write("@5");
+    write("D=A");
+    write("@"+ numArgs);
+    write("D=D+A"); //D=5+numArgs
+    write("@0");
+    write("D=M-D"); //D=SP-(5+nArgs)
+    write("@2");
+    write("M=D"); //ARG=SP-nArgs
+    //3. Set LCL = SP
+    write("@0");
+    write("D=M");
+    write("@1");
+    write("M=D");
+    //4. GOTO className.funcName label
+    write("@" + className + "." + fName);
+    write("0;JMP");
+    //5. write (className.funcName$ret.i) label for return address after call finishes
+    write("(" + className + "." + funcName + "$ret." + returnCtr + ")");
+  }
+
+  void writeReturn(VmCommand cmd) throws IOException {
+    String[] args = cmd.args;
+    // need function name and number of arguments
+    if (args.length != 0) {
+      throw new IOException("Return should not receive arguments");
+    }
+
+    // return
+    write("//" + cmd);
+    //TODO
+    // 1. Copy return to arg 0 => how to get this from className.fName$ret.i? => Assembler does it automatically
+    // QUESTION: how to save named vars?
+    // 2. Restore segment pnt of callers (LCL, ARG, THIS, THAT)
+    // 3. Clear stack
+    // 4. Set SP for caller
+    // 5. Jump to return address within caller's code (via GOTO className.fName$ret.i?)
+
+    // 1. Save LCL to temp variable endFrame (temp 1)
+  }
+
+  /*
+    Assumes D is set to the value you wish to push to the stack.
+   */
+  void pushToStack() throws IOException {
+    write("@0");
+    write("M=M+1");
+    write("A=M-1");
+    write("M=D");
+  }
+
+  /*
+    Sets D to the top value of the stack
+   */
+  void popFromStack() throws IOException {
+    write("@0");
+    write("AM=M-1");
+    write("D=M");
+  }
+
+  void write(String str) throws IOException {
+    outfileWriter.write(str);
+    outfileWriter.newLine();
   }
 }

@@ -57,6 +57,9 @@ public class VmCompiler implements Compiler {
       }
       Path outFile = Paths.get("src", "main", "resources", "output", projectName + ".asm");
       System.out.println("Compiling VM Files");
+      //TODO add bootstrap code?
+      // SP = 256
+      // call Sys.init
       for (Path vmFile : vmFiles) {
         System.out.println("Compiling file: " + vmFile.toString());
         //Compile file here
@@ -119,7 +122,8 @@ public class VmCompiler implements Compiler {
   @Override
   public void compile(Path inputPath, Path outputPath) {
     try (BufferedReader reader = Files.newBufferedReader(inputPath)) {
-      codeWriter.write(parser.parse(reader.lines()), outputPath);
+      String className = inputPath.getName(inputPath.getNameCount() - 1).toString().split("[.]")[0];
+      codeWriter.write(parser.parse(reader.lines()), className, outputPath);
     } catch (IOException e) {
       throw new RuntimeException("Failed to write file");
     }
