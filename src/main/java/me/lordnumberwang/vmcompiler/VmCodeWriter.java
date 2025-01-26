@@ -55,7 +55,6 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
             case C_CALL -> writeCall(cmd);
             case C_FUNCTION -> writeFunction(cmd);
             case C_RETURN -> writeReturn(cmd);
-            //case C_CALL, C_FUNCTION, C_GOTO, C_IF, C_LABEL, C_RETURN -> writeIf();
           }
         } catch (IOException e) {
           throw new RuntimeException("Unable to write line: " + cmd);
@@ -611,8 +610,13 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     write("D=M");
   }
 
-  void write(String str) throws IOException {
+  public void write(String str) throws IOException {
     outfileWriter.write(str);
     outfileWriter.newLine();
+  }
+
+  public void write(String str, BufferedWriter writer) throws IOException {
+    writer.write(str);
+    writer.newLine();
   }
 }

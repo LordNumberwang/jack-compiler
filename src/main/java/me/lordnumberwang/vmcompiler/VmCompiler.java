@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.net.URISyntaxException;
 import java.net.URL;
+import me.lordnumberwang.vmcompiler.VmCommand.Command;
 
 public class VmCompiler implements Compiler {
   private final Parser<VmCommand> parser;
@@ -67,7 +68,7 @@ public class VmCompiler implements Compiler {
 
       if (bootstrap) {
         // Add bootstrap code
-        bootstrap(outFile);
+        compiler.bootstrap(outFile);
       }
 
       for (Path vmFile : vmFiles) {
@@ -128,27 +129,25 @@ public class VmCompiler implements Compiler {
     throw new IllegalArgumentException("Path is neither file nor directory: " + inPath);
   }
 
-  private static void bootstrap(Path outFile) throws IOException {
-    // Set SP = 256
-    // GOTO (Sys.init)
-    try (BufferedWriter writer = Files.newBufferedWriter(outFile,
+  private void bootstrap(Path outputPath) throws IOException {
+    try (BufferedWriter writer = Files.newBufferedWriter(outputPath,
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING)) {
-      writer.write("@256");
-      //If for some reason test scripts are looking at RAM[261] instead of RAM[256]
-      //Edit the file manually to @261.
-      writer.newLine();
-      writer.write("D=A");
-      writer.newLine();
-      writer.write("@0");
-      writer.newLine();
-      writer.write("M=D");
-      writer.newLine();
-      writer.write("@Sys.init");
-      writer.newLine();
-      writer.write("0;JMP");
-      writer.newLine();
+      //overwrite existing files with new compiled content
+      //Set SP=256
+      codeWriter.write("@256", writer);
+      codeWriter.write("D=A", writer);
+      codeWriter.write("@0", writer);
+      codeWriter.write("M=D", writer);
+    } catch (Exception e) {
+      System.err.println("Error: " + e.getMessage());
     }
+    //call Sys.init
+    String line = "call Sys.init 0";
+    String[] args = Arrays.copyOfRange(line.split(" "), 1 ,3);
+    VmCommand callInit = new VmCommand(Command.C_CALL, args, line);
+    Stream<VmCommand> bootCommand = Stream.of(callInit);
+    codeWriter.write(bootCommand, "Sys", outputPath);
   }
 
   /**
