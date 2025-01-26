@@ -455,7 +455,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     if (args.length != 2) {
       throw new IOException("Wrong number of arguments to function call");
     }
-    this.returnCtr = 0; //reset call/return counter
+    //this.returnCtr = 0; //reset call/return counter
     this.funcName = args[0]; //set funcName
     int nVars = Integer.parseInt(args[1]); //number of local vars
     // function fName nVars

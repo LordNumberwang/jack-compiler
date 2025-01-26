@@ -135,6 +135,8 @@ public class VmCompiler implements Compiler {
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING)) {
       writer.write("@256");
+      //If for some reason test scripts are looking at RAM[261] instead of RAM[256]
+      //Edit the file manually to @261.
       writer.newLine();
       writer.write("D=A");
       writer.newLine();
