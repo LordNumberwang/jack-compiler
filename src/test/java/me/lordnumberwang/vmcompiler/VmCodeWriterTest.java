@@ -10,7 +10,7 @@ import org.junit.jupiter.api.*;
 public class VmCodeWriterTest {
   VmCodeWriter subject = new VmCodeWriter();
   String testFile;
-  static final String testOutfile="test.asm";
+  static final String testOutfile="test.vm";
 
   @BeforeAll
   public static void setUp() throws IOException {

@@ -1,5 +1,6 @@
 package me.lordnumberwang.vmcompiler;
 
+import java.io.BufferedWriter;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import me.lordnumberwang.*;
@@ -26,7 +27,7 @@ public class VmCompiler implements Compiler {
    * Side effects:
    *   Compiled output files returned in "/path/to/filename.asm /path/to/another/filename2.asm"
    */
-  public static void main(String[] args) throws URISyntaxException {
+  public static void main(String[] args) {
     /*
     construct parser to handle input file
     construct codewriter to handle output file
@@ -47,24 +48,35 @@ public class VmCompiler implements Compiler {
       List<Path> vmFiles = getVmFiles(args[0]);
       Path firstFile = vmFiles.getFirst();
       String projectName;
+      boolean bootstrap=false;
       //probably want to use resolveSibling()
       if (vmFiles.toArray().length > 1) {
         //Handle folder case
         projectName = firstFile.getName(firstFile.getNameCount()-2).toString();
+        bootstrap = true;
       } else {
         //Handle single file case
         projectName = firstFile.getName(firstFile.getNameCount()-1).toString().replace(".vm","");
+        if (projectName.equals("Sys")) {
+          projectName = firstFile.getName(firstFile.getNameCount()-2).toString();
+          bootstrap = true;
+        }
       }
       Path outFile = Paths.get("src", "main", "resources", "output", projectName + ".asm");
       System.out.println("Compiling VM Files");
-      //TODO Add bootstrap code?
-      // SP = 256
-      // call Sys.init
+
+      if (bootstrap) {
+        // Add bootstrap code
+        bootstrap(outFile);
+      }
+
       for (Path vmFile : vmFiles) {
+        System.out.println("\n");
         System.out.println("Compiling file: " + vmFile.toString());
         //Compile file here
         compiler.compile(vmFile, outFile);
-        System.out.printf(filesProcessed + " file(s) processed.");
+        filesProcessed++;
+        System.out.printf(" - " + filesProcessed + " file(s) processed.");
       }
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
@@ -114,6 +126,27 @@ public class VmCompiler implements Compiler {
       }
     }
     throw new IllegalArgumentException("Path is neither file nor directory: " + inPath);
+  }
+
+  private static void bootstrap(Path outFile) throws IOException {
+    // Set SP = 256
+    // GOTO (Sys.init)
+    try (BufferedWriter writer = Files.newBufferedWriter(outFile,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING)) {
+      writer.write("@256");
+      writer.newLine();
+      writer.write("D=A");
+      writer.newLine();
+      writer.write("@0");
+      writer.newLine();
+      writer.write("M=D");
+      writer.newLine();
+      writer.write("@Sys.init");
+      writer.newLine();
+      writer.write("0;JMP");
+      writer.newLine();
+    }
   }
 
   /**

@@ -430,7 +430,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     if (args.length != 1) {
       throw new IOException("Wrong number of arguments to a branching command: ");
     }
-    String label = className + "." + funcName + "$" + args[0];
+    String label = funcName + "$" + args[0];
     write("//" + cmd);
     switch (cmd.command) {
       case Command.C_LABEL:
@@ -462,13 +462,11 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     write("//" + cmd);
 
     // 1. Write label to function entry (Xxx.foo / className.funcName;
-    String label = className + "." + funcName;
+    String label = funcName;
     write("(" + label + ")");
 
     // 2. Push nVars amount of 0s.
     // Assumes we start SP=LCL (@0 = @1)
-    write("@1");
-    write("M=D");
     write("D=0");
     for (int i=0; i<nVars; i++) {
       //Write constant 0 to LCL i
@@ -483,7 +481,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     if (args.length != 2) {
       throw new IOException("Wrong number of arguments to function call");
     }
-    String fName = args[0];
+    String callee = args[0];
     int numArgs = Integer.parseInt(args[1]);
 
     // call fName nArgs
@@ -491,11 +489,13 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
 
     //1. Save caller frame: (return address, savedLCL, saved ARG, saved THIS, saved THAT)
     //Write return address label: className+"."+funcName+"$ret."+i => MyClass.currentFunc$ret.0
-    write(className + "." + funcName + "$ret." + returnCtr); //save return address value
-    write("@1");
+    write("@" + callee + "$ret." + returnCtr);
+    write("D=A"); //get retAddr
+    pushToStack(); //save retAddr
+    write("@1"); //get LCL
     write("D=M");
     pushToStack(); //Save LCL
-    write("@2");
+    write("@2"); //get ARG
     write("D=M");
     pushToStack(); //Save ARG
     write("@3");
@@ -519,10 +519,12 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     write("@1");
     write("M=D");
     //4. GOTO className.funcName label
-    write("@" + className + "." + fName);
+    write("@" + callee);
     write("0;JMP");
     //5. write (className.funcName$ret.i) label for return address after call finishes
-    write("(" + className + "." + funcName + "$ret." + returnCtr + ")");
+    write("(" + callee + "$ret." + returnCtr + ")");
+    //6. Increment returnCtr
+    this.returnCtr++;
   }
 
   void writeReturn(VmCommand cmd) throws IOException {
@@ -534,16 +536,16 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
 
     // return
     write("//" + cmd);
-    // 1. Save LCL to temp variable endFrame (temp 1 and temp 2 )
+    // 1. Save LCL to temp variable endFrame (Gen Register 0 and 1)
     write("@1");
     write("D=M");
-    write("@6"); //@temp 1
+    write("@13"); //@13 General Register 0
     write("M=D"); //endFrame variable stored
-    // 2. Get return address, save to temp 2
+    // 2. Get return address, save to Gen-1
     write("@5"); //const 5, D still endFrame value
     write("A=D-A"); // @(endFrame-5)
     write("D=M"); // D= return address
-    write("@7"); //@temp 2
+    write("@14"); //@14 Gen-1
     write("M=D"); //return address stored
     // 3. Reposition return value for caller, *ARG = pop()
     popFromStack(); //D = return value
@@ -555,7 +557,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     write("@0");
     write("M=D"); //Set SP to ARG+1
     // 5. Reposition THAT = *(endFrame-1)
-    write("@6"); //@temp1
+    write("@13"); //@13 Gen-0
     write("A=M-1"); //@(endFrame-1)
     write("D=M"); // D = *(endFrame-1)
     write("@4"); //THAT
@@ -563,7 +565,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     // 6. Reposition THIS = *(endFrame-2)
     write("@2");
     write("D=A"); //D=2
-    write("@6"); //@temp1
+    write("@13"); //@13 Gen-0
     write("A=M-D"); //@(endFrame-2)
     write("D=M"); // D=*(endFrame-2)
     write("@3"); //THIS
@@ -571,7 +573,7 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     // 7. Reposition ARG = *(endFrame-3)
     write("@3");
     write("D=A");
-    write("@6"); //@temp1
+    write("@13"); //@13 Gen-0
     write("A=M-D"); //@(endFrame-3)
     write("D=M"); // D=*(endFrame-3)
     write("@2"); //ARG
@@ -579,13 +581,13 @@ public class VmCodeWriter implements CodeWriter<VmCommand> {
     // 8. Reposition LCL = *(endFrame-4)
     write("@4");
     write("D=A");
-    write("@6"); //@temp1
+    write("@13"); //@13 Gen-0
     write("A=M-D"); //@(endFrame-4)
     write("D=M"); // D=*(endFrame-4)
     write("@1"); //LCL
     write("M=D");
-    // 9. FINALLY jump to retrAddr (goto retAddr => @temp2)
-    write("@7"); //@temp 2
+    // 9. FINALLY jump to retrAddr (goto retAddr => @GenReg1)
+    write("@14"); //@Gen-1
     write("A=M");
     write("0;JMP"); //GOTO retAddr
   }

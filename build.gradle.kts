@@ -48,7 +48,9 @@ tasks.named<JavaExec>("run") {
 //    }
 //}
 
-// Example: ./gradlew vmCompile -PPath=/path/to/your/vm/files
+// gradlew vmCompile -PPath=/path/relative/to/resources/file.vm
+// gradlew vmCompile -PPath=/path/relative/to/resources/folderWithFiles/
+// Example: gradlew vmCompile -PPath="input" => points to /resources/input/ folder
 tasks.register<JavaExec>("vmCompile") {
     group = "application"
     description = "Runs the VM compiler for either a target file or directory"

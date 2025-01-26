@@ -39,9 +39,9 @@ public class VmParser implements Parser<VmCommand> {
 
   @Override
   public Stream<VmCommand> parse(Stream<String> inStream) {
-    //TODO need to strip mid line comments.
     //Filter whitespace only, blank and comment lines
     return inStream
+        .map(String::trim)
         .filter(str -> !str.matches("^//.*"))
         .filter(str -> !str.isBlank())
         .map(this::parseLine);
@@ -49,6 +49,7 @@ public class VmParser implements Parser<VmCommand> {
 
   private VmCommand parseLine(String line) {
     line = line.split("//")[0]; //ignore inline comments
+    line = line.trim(); //strip preceding spaces
     String[] tokens = line.split(" ");
     Command cmd = commandType(tokens[0]);
 
