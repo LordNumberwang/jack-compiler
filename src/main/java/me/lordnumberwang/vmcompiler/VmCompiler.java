@@ -130,6 +130,7 @@ public class VmCompiler implements Compiler {
   }
 
   private void bootstrap(Path outputPath) throws IOException {
+    //Really I should've refactored this code to VmCodeWriter, with a boolean for bootstrapping
     try (BufferedWriter writer = Files.newBufferedWriter(outputPath,
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING)) {

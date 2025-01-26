@@ -47,7 +47,8 @@ public class VmParser implements Parser<VmCommand> {
         .map(this::parseLine);
   }
 
-  private VmCommand parseLine(String line) {
+  @Override
+  public VmCommand parseLine(String line) {
     line = line.split("//")[0]; //ignore inline comments
     line = line.trim(); //strip preceding spaces
     String[] tokens = line.split(" ");
