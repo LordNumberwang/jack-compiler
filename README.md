@@ -1,6 +1,9 @@
 # jack-compiler
 Jack Compiler for NAND to Tetris II
 
+I'll probably refactor the VmCompiler to be clearer in terms of what the Compiler, Parser and Codewriter do.
+Jumping straight from the VmCompiler to write bootstrap assembly isn't the intended route. Should be in the CodeWriter instead.
+
 ## Current commands:
 
 ### vmCompile
