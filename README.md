@@ -11,6 +11,11 @@ Jumping straight from the VmCompiler to write bootstrap assembly isn't the inten
 Compiles incoming .vm files (either a single file or a folder containing .vm files, including a Sys.vm with an init function)
 Bootstrap code will be generated for any file that contains a Sys.vm file. 
 
+### jackCompile
+
+For now tokenizes and parses a single Jack file or directory of Jack files to an .xml intermediate
+
+
 **Usage**
 
 > gradlew vmCompile -PPath="relative/path/from/src/resource"

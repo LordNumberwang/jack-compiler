@@ -70,6 +70,8 @@ tasks.register<JavaExec>("vmCompile") {
     args = listOf(path)
 }
 
+// gradlew jackCompile -PPath=/path/relative/to/resources/file.jack
+// gradlew jackCompile -PPath=/path/relative/to/resources/folderWithFiles/
 // Example: ./gradlew jackCompile -PPath=/path/to/your/jack/files
 tasks.register<JavaExec>("jackCompile") {
     group = "application"
@@ -82,3 +84,13 @@ tasks.register<JavaExec>("jackCompile") {
     args = listOf(project.properties.getOrDefault("jackPath", defaultPath) as String)
 }
 
+tasks.register<JavaExec>("jackAnalyze") {
+    group = "application"
+    description = "Runs the Jack analyzer for either a target file or directory, compiling to XML tokenized output."
+    //Default to using /input directory, searching for all *.jack files
+    mainClass.set("me.lordnumberwang.jackcompiler.JackAnalyzer")
+    classpath = sourceSets["main"].runtimeClasspath
+
+    val defaultPath = "input"
+    args = listOf(project.properties.getOrDefault("jackPath", defaultPath) as String)
+}

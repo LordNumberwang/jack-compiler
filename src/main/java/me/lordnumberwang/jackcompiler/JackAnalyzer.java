@@ -11,22 +11,27 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Stream;
-import me.lordnumberwang.CodeWriter;
-import me.lordnumberwang.Parser;
 
-public class JackCompiler {
+public class JackAnalyzer {
   private final CompilationEngine compilationEngine;
   private final JackTokenizer jackTokenizer;
 
-  public JackCompiler(JackTokenizer jackTokenizer, CompilationEngine compilationEngine) {
-    this.jackTokenizer = jackTokenizer;
+  public JackAnalyzer(JackTokenizer tokenizer, CompilationEngine compilationEngine) {
+    this.jackTokenizer = tokenizer;
     this.compilationEngine = compilationEngine;
   }
 
+  /**
+   *
+   * @param args - List of arguments intended to contain filepaths to .jack files:
+   *             Either a single .jack file, or a directory with .jack files
+   * Side effects:
+   *   Compiled output files returned in "/path/to/filename.asm /path/to/another/filename2.asm"
+   */
   public static void main(String[] args) {
     /*
-      construct parser to handle input file
-      construct codewriter to handle output file
+      construct tokenizer to handle input file
+      construct compilation engine to handle generating XML
       march through input file and parse each line and generate code from it.
     */
     // e.g. "/input" directory or "/input/myfile.jack"
@@ -35,10 +40,11 @@ public class JackCompiler {
       return;
     }
     int filesProcessed = 0;
+    System.out.println("Compiling Jack code to .XML intermediate...");
+
     JackTokenizer tokenizer = new JackTokenizer();
     CompilationEngine compilationEngine = new CompilationEngine();
-    JackCompiler compiler = new JackCompiler(tokenizer, compilationEngine);
-
+    JackAnalyzer analyzer = new JackAnalyzer(tokenizer, compilationEngine);
     try {
       List<Path> jackFiles = getJackFiles(args[0]);
       for (Path jackFile : jackFiles) {
@@ -49,9 +55,8 @@ public class JackCompiler {
             toString().replace(".jack",".xml");
         Path outFile = Paths.get("src", "main", "resources", "output", outName);
 
-        //Compile file here
-        System.out.println("Compiling Jack code once I finish project 9+...");
-        //compiler.compile(vmFile, outFile);
+        //Analyze file
+        analyzer.analyze(jackFile, outFile);
         filesProcessed++;
         System.out.printf(" - " + filesProcessed + " file(s) processed.");
       }
@@ -105,11 +110,10 @@ public class JackCompiler {
     throw new IllegalArgumentException("Path is neither file nor directory: " + inPath);
   }
 
-  public void compile(Path inputPath, Path outputPath) {
+  public void analyze(Path inputPath, Path outputPath) {
     try (BufferedReader reader = Files.newBufferedReader(inputPath)) {
       Stream<JackToken> tokens = jackTokenizer.tokenize(reader.lines());
-      //TODO handle compiler
-      // write(tokens, ..., outputPath);
+      compilationEngine.compileToXML(tokens, outputPath);
     } catch (IOException e) {
       throw new RuntimeException("Failed to write file");
     }

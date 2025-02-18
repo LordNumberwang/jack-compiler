@@ -24,9 +24,9 @@ public class VmCompiler implements Compiler {
   /**
    *
    * @param args - List of arguments intended to contain filepaths to .vm files:
-   *                space delimited string of "/path/to/filename.vm /path/to/another/filename2.vm"
+   *                either a single .vm file, or a directory with .vm files
    * Side effects:
-   *   Compiled output files returned in "/path/to/filename.asm /path/to/another/filename2.asm"
+   *   Compiled output files returned in "/path/to/filename.asm"
    */
   public static void main(String[] args) {
     /*
