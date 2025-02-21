@@ -1,30 +1,87 @@
 package me.lordnumberwang.jackcompiler;
 
-import me.lordnumberwang.jackcompiler.JackToken.keyWord;
+import java.util.Set;
 
 public class JackToken {
-  public enum tokenType {
+  public enum TokenType {
     KEYWORD,
     SYMBOL,
     IDENTIFIER,
     INT_CONST,
     STRING_CONST
   }
-  public enum keyWord {
+  public enum KeyWord {
     CLASS, METHOD, FUNCTION, CONSTRUCTOR,
     INT, BOOLEAN, CHAR, VOID, VAR, STATIC, FIELD,
     LET, DO, IF, ELSE, WHILE, RETURN,
     TRUE, FALSE, NULL, THIS
   }
-  tokenType tokenType;
-  keyWord keyWord;
+  public static final Set<Character> symbolSet = Set.of(
+      '(', ')', '{', '}', '[', ']', ',', '.', ';',
+      '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
+  );
+  public final TokenType type;
+  public KeyWord keyWord;
+  public String stringValue;
+  public int intValue;
+  public char charValue;
 
-  JackToken(tokenType type, keyWord kw) {
-    tokenType = type;
-    keyWord = kw;
+  JackToken(TokenType type, KeyWord kw) {
+    if (type != TokenType.KEYWORD) {
+      throw new IllegalArgumentException("Constructor may only be used with TokenType.KEYWORD");
+    }
+    this.type = type;
+    this.keyWord = kw;
   }
 
-  JackToken(tokenType type) {
-    tokenType = type;
+  JackToken(TokenType type, int intValue) {
+    if (type != TokenType.INT_CONST) {
+      throw new IllegalArgumentException("Constructor may only be used with TokenType.INT_CONST");
+    }
+    if (intValue > 32767 || intValue < 0) {
+      throw new IllegalArgumentException("Invalid int (must be 0-32767");
+    }
+    this.type = type;
+    this.intValue = intValue;
+  }
+
+  JackToken(TokenType type, char symbolChar) {
+    if (type != TokenType.SYMBOL) {
+      throw new IllegalArgumentException("Constructor may only be used with TokenType.INT_CONST");
+    }
+    this.type = type;
+    this.charValue = symbolChar;
+  }
+
+  JackToken(TokenType type, String strValue) {
+    if (type != TokenType.STRING_CONST && type != TokenType.IDENTIFIER) {
+      throw new IllegalArgumentException("Constructor may only be used with TokenType.STRING_CONST "
+          + "or TokenType.IDENTIFIER");
+    }
+    this.type = type;
+    this.stringValue = strValue;
+  }
+
+  public String getValue() {
+    return switch (type) {
+      case INT_CONST ->
+        String.valueOf(intValue);
+      case STRING_CONST, IDENTIFIER ->
+        stringValue;
+      case SYMBOL ->
+        String.valueOf(charValue);
+      case KEYWORD ->
+        keyWord.toString();
+      default ->
+        throw new IllegalArgumentException("No type set");
+    };
+  }
+
+  @Override
+  public String toString() {
+    return "JackToken{" +
+        "type=" + type +
+        ", value=" + getValue() +
+        '}';
   }
 }

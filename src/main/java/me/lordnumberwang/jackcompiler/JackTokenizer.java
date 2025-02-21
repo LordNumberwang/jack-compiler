@@ -1,14 +1,11 @@
 package me.lordnumberwang.jackcompiler;
 
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Queue;
-import java.util.Set;
-import java.util.stream.Stream;
-import me.lordnumberwang.jackcompiler.JackToken;
-import me.lordnumberwang.jackcompiler.JackToken.keyWord;
-import me.lordnumberwang.jackcompiler.JackToken.tokenType;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.*;
+import me.lordnumberwang.jackcompiler.JackToken.KeyWord;
+import me.lordnumberwang.jackcompiler.JackToken.TokenType;
 
 public class JackTokenizer {
   Path outfile;
@@ -18,8 +15,19 @@ public class JackTokenizer {
   Queue<JackToken> tokenBuffer;
   Iterator<JackToken> iterator;
 
-  public JackTokenizer() {
-  }
+  static Set<Character> symbolSet = Set.of(
+      '(', ')', '{', '}', '[', ']', ',', '.', ';',
+      '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
+  );
+  static Set<String> keywordSet = Set.of(
+      "class", "constructor", "function", "method", "field", "static",
+      "var", "int", "char", "boolean",
+      "void", "true", "false", "null",
+      "this", "let", "do", "if", "else", "while", "return"
+  );
+  static Predicate<Character> identifierChar = c -> (Character.isLetterOrDigit(c) || c == '_');
+
+  public JackTokenizer() { }
 
   /**
    * Ignores all comments and whitespace in input stream and serializes to JackTokens
@@ -32,10 +40,10 @@ public class JackTokenizer {
     tokens = lines.map(String::trim)
         .map(this::removeComments)
         .filter(str -> !str.isBlank())
-        .map(this::tokenizeLine);
+        .map(this::tokenizeLine)
+        .flatMap(List::stream);
     return tokens;
   }
-
   /**
    *
     * @param line - incoming line of code as a string
@@ -43,7 +51,7 @@ public class JackTokenizer {
    *          starting with /** or /*
    */
   public String removeComments(String line) {
-    StringBuilder nonComments= new StringBuilder();
+    StringBuilder nonComments = new StringBuilder();
     int i=0;
     while (i< line.length()) {
       if (inBlockComment) {
@@ -73,29 +81,55 @@ public class JackTokenizer {
     return nonComments.toString().trim();
   }
 
-  public JackToken tokenizeLine(String line) {
-    //TODO handle tokenization based on incoming word
-    String[] words = Arrays.stream(line.split(" "))
-            .filter(str -> !str.trim().isEmpty())
-            .toArray(String[]::new);
-    //need to handle 'words' now to tokens
 
-    // Case 1. Keyword
-    // Case 2. Integer (decimal number)
-    // Case 3. Symbol (in a set list of chars)
-    Set<Character> symbolSet = Set.of(
-        '(', ')', '{', '}', '[', ']', ',', '.', ';',
-        '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
-    );
-//    Set<Character> stringSet = Set.of(
-//        '(', ')', '{', '}', '[', ']', ',', '.', ';',
-//        '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
-//    );
-    // symbolSet.contains(myChar) to check if contained
-    // Case 4. String Constant (within ""s)
-    // Case 5. Identifier (start of string not beginning with a digit)
+  /**
+   * Recursive function generating tokens for a given line/substring
+   * @param line - represents a line or substring to be interpreted to tokens
+   * @return
+   *    a List<JackTokens> representing the tokens this line/substring represents
+   */
+  public List<JackToken> tokenizeLine(String line) {
+    //TODO recursively handle tokenization based on incoming word
+    //    String[] words = Arrays.stream(line.split(" "))
+    //            .filter(str -> !str.isBlank())
+    //            .toArray(String[]::new);
+    //This needs to be recursive, without splitting by " "
 
-    return new JackToken(tokenType.SYMBOL);
+    if (line.isBlank()) {
+      return new ArrayList<>(); //return empty arraylist
+    }
+    line = line.trim();
+    List<JackToken> lineTokens = new ArrayList<>(List.of());
+    // Token interpretation hierarchy:
+    // 1. If starts with " => String Const
+    // 2. If char(0) is Symbol in list => Symbol
+    // 3. If starts with decimal value => Integer Constant
+    // 4. check String => keyword (go until non-space char)
+    // 5. else identifier => String.valueOf(char).matches("[a-zA-Z_]")
+
+    char firstChar = line.charAt(0);
+    if (firstChar == '"') {
+      //Case 1: String Constant encased in "..."
+      return tokenizeString(line, lineTokens);
+    } else if (symbolSet.contains(firstChar)) {
+      //Case 2: Token is Symbol (not contained in "")
+      lineTokens.add(new JackToken(TokenType.SYMBOL, line.charAt(0)));
+      if (line.length() > 1) {
+        lineTokens.addAll(tokenizeLine(line.substring(1)));
+      }
+      return lineTokens;
+    } else if (firstChar >= '0' && firstChar <= '9') {
+      // Case 3: Integer Constant - If starts with decimal value
+      return tokenizeInteger(line, lineTokens);
+    } else if (identifierChar.test(firstChar)) {
+      // Read in until reach non-'string' character:
+      // letter, digit, _ not starting with digit (handled by previous case)
+      // Case 4: Check if this string is a keyword
+      // Case 5: If not a keyword, parse as Identifier
+      return tokenizeKeywordOrString(line, lineTokens);
+    } else {
+      throw new RuntimeException("Illegal/Unparseable Character passed in: " + firstChar);
+    }
   }
 
   /**
@@ -119,17 +153,17 @@ public class JackTokenizer {
   /**
    * Returns the type of the current token as a constant
    */
-  public tokenType tokenType() {
-    return currentToken.tokenType;
+  public TokenType tokenType() {
+    return currentToken.type;
   }
 
   /**
-   * Returns keyWord enum for current token as a constant.
-   * Called only if tokenType is KEYWORD
-   * @return keyWord enum value of current token
+   * Returns KeyWord enum for current token as a constant.
+   * Called only if type is KEYWORD
+   * @return KeyWord enum value of current token
    */
-  public keyWord keyWord() {
-    if (currentToken.tokenType == tokenType.KEYWORD) {
+  public KeyWord keyWord() {
+    if (currentToken.type == TokenType.KEYWORD) {
       return currentToken.keyWord;
     } else {
       throw new IllegalArgumentException("Token is not a Keyword");
@@ -138,12 +172,11 @@ public class JackTokenizer {
 
   /**
    * Returns the character which is the current token.
-   * Only called if tokenType is SYMBOL
+   * Only called if type is SYMBOL
    */
-  private char symbol() {
-    //TODO -
-    if (tokenType() == tokenType.SYMBOL) {
-      return 'a';
+  public char symbol() {
+    if (tokenType() == TokenType.SYMBOL) {
+      return currentToken.charValue;
     } else {
       throw new IllegalArgumentException("Token is not a symbol");
     }
@@ -151,13 +184,12 @@ public class JackTokenizer {
 
   /**
    * Returns identifier which is the current token.
-   * Called only if tokenType is IDENTIFIER
+   * Called only if type is IDENTIFIER
    * @return
    */
-  private String identifier() {
-    //TODO
-    if (tokenType() == tokenType.IDENTIFIER) {
-      return "TODO";
+  public String identifier() {
+    if (tokenType() == TokenType.IDENTIFIER) {
+      return currentToken.stringValue;
     } else {
       throw new IllegalArgumentException("Token is not an identifier");
     }
@@ -165,13 +197,12 @@ public class JackTokenizer {
 
   /**
    * Returns integer value of current token.
-   * Called only if tokenType is INT_CONST
+   * Called only if type is INT_CONST
    * @return
    */
-  private int intVal() {
-    //TODO
-    if (tokenType() == tokenType.INT_CONST) {
-      return 0;
+  public int intVal() {
+    if (tokenType() == TokenType.INT_CONST) {
+      return currentToken.intValue;
     } else {
       throw new IllegalArgumentException("Token is not an integer constant");
     }
@@ -179,13 +210,12 @@ public class JackTokenizer {
 
   /**
    * Returns string value of current token
-   * Called only if tokenType is STRING_CONST
+   * Called only if type is STRING_CONST
    * @return
    */
-  private String stringVal() {
-    //TODO
-    if (tokenType() == tokenType.STRING_CONST) {
-      return "TODO";
+  public String stringVal() {
+    if (tokenType() == TokenType.STRING_CONST) {
+      return currentToken.stringValue;
     } else {
       throw new IllegalArgumentException("Token is not a string");
     }
@@ -193,5 +223,91 @@ public class JackTokenizer {
 
   public JackToken getCurrentToken() {
     return currentToken;
+  }
+
+  private List<JackToken> tokenizeString(String line, List<JackToken> lineTokens) {
+    StringBuilder strConst = new StringBuilder();
+    int idx = 1;
+    while (idx < line.length()) {
+      char currentChar = line.charAt(idx);
+      if (currentChar == '"') {
+        //strConst = line.substring(0,idx-1);
+        lineTokens.add(new JackToken(TokenType.STRING_CONST, strConst.toString()));
+        if (idx+1 < line.length()) {
+          //recursively parse rest
+          lineTokens.addAll(tokenizeLine(line.substring(idx+1)));
+        }
+        return lineTokens;
+      } else if (currentChar == '\n') {
+        throw new RuntimeException("Newline found in string constant.");
+      }
+      strConst.append(currentChar);
+      idx++;
+    }
+    throw new RuntimeException("Unpaired \", invalid string in parsing: " + line);
+  }
+
+  private List<JackToken> tokenizeInteger(String line, List<JackToken> lineTokens) {
+    char firstChar = line.charAt(0);
+    Predicate<Character> charTest = x -> x >= '0' && x <= '9';
+    if (firstChar == '0' && line.length() > 1
+        && (charTest.test(line.charAt(1)))) {
+      // Handle invalid number of leading 0.
+      throw new RuntimeException("Leading 0 on a number detected: " + line);
+    }
+    int idx = 1;
+    while (idx < line.length()) {
+      if (!charTest.test(line.charAt(idx))) {
+        lineTokens.add(new JackToken(
+            TokenType.INT_CONST,
+            Integer.parseInt(line.substring(0,idx))
+        ));
+        lineTokens.addAll(tokenizeLine(line.substring(idx)));
+        return lineTokens;
+      }
+      idx++;
+    }
+    //If stays numeric until end of line:
+    lineTokens.add(new JackToken(
+        TokenType.INT_CONST,
+        Integer.parseInt(line))
+    );
+    return lineTokens;
+  }
+
+  /**
+   * Assumes first char passed the string test
+   * @param line
+   * @param lineTokens
+   * @return list of JackTokens from line.
+   */
+  private List<JackToken> tokenizeKeywordOrString(String line, List<JackToken> lineTokens) {
+    int idx = 1;
+    StringBuilder word = new StringBuilder();
+    word.append(line.charAt(0));
+    while (idx < line.length()) {
+      char currentChar = line.charAt(idx);
+      if (!identifierChar.test(currentChar)) {
+        //reached end of string
+        break;
+      };
+      idx++;
+      word.append(currentChar);
+    }
+
+    if (keywordSet.contains(word.toString().toLowerCase())) {
+      // Case 4: Parse as a keyword
+      lineTokens.add(new JackToken(TokenType.KEYWORD,
+          KeyWord.valueOf(word.toString().toUpperCase())));
+    } else {
+      // Case 5: If not a keyword, parse as Identifier
+      lineTokens.add(new JackToken(TokenType.IDENTIFIER,
+          word.toString()));
+    }
+    if (idx != line.length()) {
+      // recursive call the remainder
+      lineTokens.addAll(tokenizeLine(line.substring(idx)));
+    }
+    return lineTokens;
   }
 }
