@@ -71,6 +71,10 @@ public class JackTokenizer {
           } else if (line.charAt(i+1) == '/') {
             //Entirely comment line - break out
             break;
+          } else {
+            //Not a comment, just / operator
+            nonComments.append(line.charAt(i)); //append as text
+            i++;
           }
         } else {
           nonComments.append(line.charAt(i)); //append as text

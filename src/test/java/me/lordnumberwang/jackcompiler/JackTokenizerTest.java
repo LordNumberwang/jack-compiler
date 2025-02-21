@@ -1,7 +1,14 @@
 package me.lordnumberwang.jackcompiler;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import me.lordnumberwang.jackcompiler.JackToken.KeyWord;
 import me.lordnumberwang.jackcompiler.JackToken.TokenType;
@@ -239,6 +246,26 @@ public class JackTokenizerTest {
       for (int i = 0; i < tokens.size(); i++) {
         assertEquals(expectedTokens.get(i).type, tokens.get(i).type);
         assertEquals(expectedTokens.get(i).getValue(), tokens.get(i).getValue());
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Full File Testing")
+  class SampleFileParse {
+    @Test
+    @DisplayName("Parse sample file")
+    public void testFileParse() throws IOException {
+      Path testFile = Paths.get("src","test","resources","jack","sample.jack");
+      try (BufferedReader reader = Files.newBufferedReader(testFile)) {
+        Stream<String> lines = reader.lines();
+        Stream<JackToken> tokens = subject.tokenize(lines);
+        List<JackToken> tokensList = tokens.toList();
+
+        int x = tokensList.size();
+
+      } catch (IOException e) {
+        throw new IOException("Failed to read test file.");
       }
     }
   }
