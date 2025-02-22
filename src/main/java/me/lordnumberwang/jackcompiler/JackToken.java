@@ -123,7 +123,7 @@ public class JackToken {
   }
 
   String writeEndTag() {
-    return "</" + typeString() + " ";
+    return "</" + typeString() + ">";
   }
 
   @Override

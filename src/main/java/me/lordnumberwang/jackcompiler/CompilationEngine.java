@@ -67,15 +67,13 @@ public class CompilationEngine {
     if (getCurrentToken().type != TokenType.KEYWORD || getCurrentToken().keyWord != KeyWord.CLASS) {
       throw new RuntimeException("Invalid file - file must start with class declaration.");
     } else {
-      writeLine(Tag("class"));
+      writeLine("<class>");
       indent++;
       // class <name> {
       writeLine(currentToken.toXmlElement()); //<keyword> class </keyword>
       advance();
       writeIfValid(TokenType.IDENTIFIER);
-      advance();
       writeIfValid(TokenType.SYMBOL, "{");
-      advance();
 
       //class var declarations starting with 'static'/'field'
       while((currentToken.type == TokenType.KEYWORD) &&
@@ -93,10 +91,9 @@ public class CompilationEngine {
 
       // }
       writeIfValid(TokenType.SYMBOL, "}");
-      advance();
 
       indent--;
-      writeLine(EndTag("class"));
+      writeLine("</class>");
     }
   }
 
@@ -106,31 +103,27 @@ public class CompilationEngine {
    */
   void compileClassVarDec() throws IOException {
     //(static|field) type varName (',' varName)* ;
-    writeLine(Tag("classVarDec"));
+    writeLine("<classVarDec>");
     indent++;
 
     writeLine(currentToken.toXmlElement()); //write field/static detected on entry
     advance();
-    if (definedClasses.contains(currentToken.getValue())) {
+    if (isValidType()) {
       writeIfValid(TokenType.IDENTIFIER); //type matching defined classes
-      advance();
-      writeIfValid(TokenType.IDENTIFIER);
-      advance();//varName
     } else {
       throw new IllegalArgumentException("Received invalid type: " + currentToken.getValue());
     }
+    writeIfValid(TokenType.IDENTIFIER); //varName
 
     while(isValid(TokenType.SYMBOL,",")) {
       writeLine(currentToken.toXmlElement()); //,
       advance();
       writeIfValid(TokenType.IDENTIFIER);
-      advance();
     }
 
     writeIfValid(TokenType.SYMBOL, ";");
     indent--;
-    writeLine(EndTag("classVarDec"));
-    advance();
+    writeLine("</classVarDec>");
   }
 
   /**
@@ -139,34 +132,29 @@ public class CompilationEngine {
    */
   void compileSubroutineDec() throws IOException {
     //(constructor|function|method) (void|type) name ( parameterList ) subroutineBody;
-    writeLine(Tag("subroutineDec"));
+    writeLine("<subroutineDec>");
     indent++;
 
     writeLine(currentToken.toXmlElement()); //write const/func/method detected on entry
     advance();
     if (isValid(TokenType.KEYWORD,"void") ||
-        (currentToken.type == TokenType.IDENTIFIER &&
-            definedClasses.contains(currentToken.getValue()))) {
+        (isValidType())) {
       writeLine(currentToken.toXmlElement());
-      advance();
-      writeIfValid(TokenType.IDENTIFIER);
-      advance();
     } else {
       throw new IllegalArgumentException("Received invalid type for subroutine: "
           + currentToken.getValue());
     }
+    advance();
+    writeIfValid(TokenType.IDENTIFIER); //name
     //( parameterList )
     writeIfValid(TokenType.SYMBOL,"(");
-    advance();
     compileParameterList();
     writeIfValid(TokenType.SYMBOL,")");
-    advance();
 
-    //TODO handle statements
+    compileSubroutineBody();
 
     indent--;
-    writeLine(EndTag("subroutineDec"));
-    advance();
+    writeLine("</subroutineDec>");
   }
 
   /**
@@ -174,55 +162,105 @@ public class CompilationEngine {
    */
   void compileParameterList() throws IOException {
     //0 or 1 case: ( (type varName) (, type varName)* )?
-    writeLine(Tag("parameterList"));
-    indent++;
+    writeLine("<parameterList>");
 
-    if (currentToken.type == TokenType.IDENTIFIER &&
-        definedClasses.contains(currentToken.getValue())) {
+    if (isValidType()) {
+      indent++;
       //Params present case: (type varName) (, type varName)*
       writeLine(currentToken.toXmlElement());
       advance();
-      //TODO CHECK BELOW
+      writeIfValid(TokenType.IDENTIFIER); //varName
       while(isValid(TokenType.SYMBOL,",")) {
         writeLine(currentToken.toXmlElement()); // ","
         advance();
-        if (currentToken.type == TokenType.IDENTIFIER &&
-            definedClasses.contains(currentToken.getValue())) {
-          //
+        if (isValidType()) {
+          writeLine(currentToken.toXmlElement()); //write type
+        } else {
+          throw new IllegalArgumentException("Received invalid type for parameter list: "
+              + currentToken.getValue());
         }
-
-        writeIfValid(TokenType.IDENTIFIER);
         advance();
+        writeIfValid(TokenType.IDENTIFIER);
       }
+      indent--;
     }
 
-    indent--;
-    writeLine(EndTag("parameterList"));
-    advance();
+    writeLine("</parameterList>");
   }
 
   /**
    * Compile a subroutine's body
+   * Grammar: '{' varDec* statements '}'
    */
-  void compileSubroutineBody() {
-    //TODO
-    return;
+  void compileSubroutineBody() throws IOException {
+    writeLine("<subroutineBody>");
+    indent++;
+    writeIfValid(TokenType.SYMBOL, "{");
+
+    //Handle 0+ variable declarations
+    while (isValid(TokenType.SYMBOL, "var")) {
+      compileVarDec();
+    }
+
+    compileStatements();
+
+    writeIfValid(TokenType.SYMBOL, "}");
+
+    indent--;
+    writeLine("</subroutineBody>");
   }
 
   /**
-   * Compile var declaration.
+   * Compile var declaration - assumes current token is 'var' keyword
+   * Grammar: 'var' type varName (',' varName)* ';'
    */
-  void compileVarDec() {
-    //TODO
-    return;
+  void compileVarDec() throws IOException {
+    writeLine("<varDec>");
+    indent++;
+
+    writeLine(currentToken.toXmlElement());
+    advance();
+    if (isValidType()) {
+      writeLine(currentToken.toXmlElement()); //write type
+    } else {
+      throw new IllegalArgumentException("Received invalid type for variable declaration: "
+          + currentToken.getValue());
+    }
+    advance();
+    writeIfValid(TokenType.IDENTIFIER); //varName
+    while(isValid(TokenType.SYMBOL,",")) {
+      writeLine(currentToken.toXmlElement()); // ","
+      advance();
+      writeIfValid(TokenType.IDENTIFIER); //varName*
+    }
+    writeIfValid(TokenType.SYMBOL, "}");
+
+    indent--;
+    writeLine("</varDec>");
   }
 
   /**
    * Compile a sequence of Statements, doesn't' handle enclosing {}
    */
-  void compileStatements() {
-    //TODO
-    return;
+  void compileStatements() throws IOException {
+    writeLine("<statements>");
+    indent++;
+
+    while(currentToken.type == TokenType.KEYWORD &&
+        Set.of("let","if","while","do","return").contains(currentToken.getValue())) {
+      switch (currentToken.getValue()) {
+        case "let" -> compileLet();
+        case "if" -> compileIf();
+        case "while" -> compileWhile();
+        case "do" -> compileDo();
+        case "return" -> compileReturn();
+        default ->
+          throw new IllegalArgumentException("Invalid Statement type");
+      }
+    }
+
+    indent--;
+    writeLine("</statements>");
   }
 
   /**
@@ -245,6 +283,14 @@ public class CompilationEngine {
    * Compile while statement
    */
   void compileWhile() {
+    //TODO
+    return;
+  }
+
+  /**
+   * Compile do statement
+   */
+  void compileDo() {
     //TODO
     return;
   }
@@ -325,14 +371,6 @@ public class CompilationEngine {
     writer.newLine();
   }
 
-  public String Tag(String tag) throws IOException {
-    return "<" + tag + ">";
-  }
-
-  public String EndTag(String tag) throws IOException {
-    return Tag("/" + tag);
-  }
-
   /**
    * Validate the incoming
    * @param type
@@ -347,12 +385,17 @@ public class CompilationEngine {
     return isValid(currentToken, type, value);
   }
 
+  boolean isValidType() {
+    return definedClasses.contains(currentToken.getValue());
+  }
+
   /**
    * Write the token line if matches the given type and value
    */
   public void writeIfValid(JackToken token, TokenType type, String value) throws IOException {
     if (isValid(type, value)) {
       writeLine(token.toXmlElement());
+      advance();
     } else {
       throw new RuntimeException("Invalid syntax: " +
           JackToken.typeString(type) + " of value " +
@@ -362,6 +405,7 @@ public class CompilationEngine {
   public void writeIfValid(JackToken token, TokenType type) throws IOException {
     if (token.type == type) {
       writeLine(token.toXmlElement());
+      advance();
     } else {
       throw new RuntimeException("Invalid syntax: " +
           JackToken.typeString(type) + " expected");
@@ -370,6 +414,7 @@ public class CompilationEngine {
   public void writeIfValid(TokenType type, String value) throws IOException {
     if (isValid(type, value)) {
       writeLine(currentToken.toXmlElement());
+      advance();
     } else {
       throw new RuntimeException("Invalid syntax: " +
           JackToken.typeString(type) + " of value " +
@@ -379,6 +424,7 @@ public class CompilationEngine {
   public void writeIfValid(TokenType type) throws IOException {
     if (currentToken.type == type) {
       writeLine(currentToken.toXmlElement());
+      advance();
     } else {
       throw new RuntimeException("Invalid syntax: " +
           JackToken.typeString(type) + " expected");
