@@ -50,7 +50,7 @@ public class JackTokenizer {
    * @return line without comments, accounting for multiline comments
    *          starting with /** or /*
    */
-  public String removeComments(String line) {
+  String removeComments(String line) {
     StringBuilder nonComments = new StringBuilder();
     int i=0;
     while (i< line.length()) {
@@ -85,7 +85,6 @@ public class JackTokenizer {
     return nonComments.toString().trim();
   }
 
-
   /**
    * Recursive function generating tokens for a given line/substring
    * @param line - represents a line or substring to be interpreted to tokens
@@ -93,12 +92,6 @@ public class JackTokenizer {
    *    a List<JackTokens> representing the tokens this line/substring represents
    */
   public List<JackToken> tokenizeLine(String line) {
-    //TODO recursively handle tokenization based on incoming word
-    //    String[] words = Arrays.stream(line.split(" "))
-    //            .filter(str -> !str.isBlank())
-    //            .toArray(String[]::new);
-    //This needs to be recursive, without splitting by " "
-
     if (line.isBlank()) {
       return new ArrayList<>(); //return empty arraylist
     }
@@ -134,24 +127,6 @@ public class JackTokenizer {
     } else {
       throw new RuntimeException("Illegal/Unparseable Character passed in: " + firstChar);
     }
-  }
-
-  /**
-   * Returns: Are there more tokens in the input?
-   */
-  public boolean hasMoreTokens() {
-    //TODO handle this with a buffer allowing for lookahead
-    return true;
-  }
-
-  /**
-   * Gets next token from the input and makes it the current token.
-   * Called only if hasMoreTokens is true.
-   * Initially there is no current token.
-   */
-  public void advance() {
-    //TODO handle reading from lookahead buffer as needed
-
   }
 
   /**

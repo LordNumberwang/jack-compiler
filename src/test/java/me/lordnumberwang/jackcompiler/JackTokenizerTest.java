@@ -36,7 +36,6 @@ public class JackTokenizerTest {
     String line6 = "in block delete this all";
     String line7 = "and this too */ block comment ended   ";
 
-
     String translated1 = subject.removeComments(line1);
     String translated2 = subject.removeComments(line2);
     String translated3 = subject.removeComments(line3);
@@ -173,7 +172,7 @@ public class JackTokenizerTest {
       JackToken testToken = tokens.getFirst();
       assertEquals(TokenType.KEYWORD, testToken.type);
       assertEquals(KeyWord.CLASS, testToken.keyWord);
-      assertEquals("CLASS", testToken.getValue());
+      assertEquals("class", testToken.getValue());
     }
 
     @Test
@@ -185,7 +184,7 @@ public class JackTokenizerTest {
       JackToken testToken = tokens.getFirst();
       assertEquals(TokenType.KEYWORD, testToken.type);
       assertEquals(KeyWord.STATIC, testToken.keyWord);
-      assertEquals("STATIC", testToken.getValue());
+      assertEquals("static", testToken.getValue());
     }
   }
 

@@ -9,12 +9,16 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class JackAnalyzer {
   private final CompilationEngine compilationEngine;
   private final JackTokenizer jackTokenizer;
+  static Function<Path,String> fileToName = file ->
+      file.getName(file.getNameCount()-1).toString();
 
   public JackAnalyzer(JackTokenizer tokenizer, CompilationEngine compilationEngine) {
     this.jackTokenizer = tokenizer;
@@ -47,6 +51,12 @@ public class JackAnalyzer {
     JackAnalyzer analyzer = new JackAnalyzer(tokenizer, compilationEngine);
     try {
       List<Path> jackFiles = getJackFiles(args[0]);
+      Function<Path,String> fileToName = file ->
+          file.getName(file.getNameCount()-1).toString();
+      List<String> fileNames = jackFiles.stream().map(fileToName)
+          .map(name->name.replace(".jack",""))
+          .toList();
+      compilationEngine.setDefinedClasses(fileNames);
       for (Path jackFile : jackFiles) {
         System.out.println("\n");
         System.out.println("Compiling file: " + jackFile.toString());

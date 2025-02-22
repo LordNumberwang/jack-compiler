@@ -1,5 +1,6 @@
 package me.lordnumberwang.jackcompiler;
 
+import java.util.Map;
 import java.util.Set;
 
 public class JackToken {
@@ -19,6 +20,12 @@ public class JackToken {
   public static final Set<Character> symbolSet = Set.of(
       '(', ')', '{', '}', '[', ']', ',', '.', ';',
       '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
+  );
+  public static final Map<String, String> mapXmlSym = Map.of(
+      "<", "&lt;",
+      ">", "&gt;",
+      "\"", "&quot;",
+      "&", "&amp;"
   );
   public final TokenType type;
   public KeyWord keyWord;
@@ -71,10 +78,52 @@ public class JackToken {
       case SYMBOL ->
         String.valueOf(charValue);
       case KEYWORD ->
-        keyWord.toString();
+        keyWord.toString().toLowerCase();
       default ->
         throw new IllegalArgumentException("No type set");
     };
+  }
+
+  public String toXmlElement() {
+    String xmlValue = switch (type) {
+      case SYMBOL -> mapXmlSym.getOrDefault(getValue(), getValue());
+      case STRING_CONST, KEYWORD, INT_CONST, IDENTIFIER -> getValue();
+      default ->
+        throw new IllegalArgumentException("No type set");
+    };
+    return writeTag() + " " + toXmlElement() + " " + writeEndTag();
+  }
+
+  public String typeString() {
+    return switch(type) {
+      case KEYWORD -> "keyword";
+      case SYMBOL -> "symbol";
+      case IDENTIFIER -> "identifier";
+      case STRING_CONST -> "stringConstant";
+      case INT_CONST -> "integerConstant";
+      default ->
+        throw new IllegalArgumentException("No type set");
+    };
+  }
+
+  static public String typeString(TokenType aType) {
+    return switch(aType) {
+      case KEYWORD -> "keyword";
+      case SYMBOL -> "symbol";
+      case IDENTIFIER -> "identifier";
+      case STRING_CONST -> "stringConstant";
+      case INT_CONST -> "integerConstant";
+      default ->
+          throw new IllegalArgumentException("Invalid type");
+    };
+  }
+
+  String writeTag() {
+    return "<" + typeString() + ">";
+  }
+
+  String writeEndTag() {
+    return "</" + typeString() + " ";
   }
 
   @Override
