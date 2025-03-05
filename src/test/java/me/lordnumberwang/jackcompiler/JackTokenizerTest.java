@@ -195,7 +195,6 @@ public class JackTokenizerTest {
     @Test
     @DisplayName("myVar")
     public void testIdentifierMyvarParse() {
-      //TODO WRITE THESE TESTS
       String line = "myVar";
       List<JackToken> tokens = subject.tokenizeLine(line);
       assertEquals(1, tokens.size());
@@ -208,7 +207,6 @@ public class JackTokenizerTest {
     @Test
     @DisplayName("myClass")
     public void testIdentifierMyClassParse() {
-      //TODO WRITE THESE TESTS
       String line = "myClass";
       List<JackToken> tokens = subject.tokenizeLine(line);
       assertEquals(1, tokens.size());

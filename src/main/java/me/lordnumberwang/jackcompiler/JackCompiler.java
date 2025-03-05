@@ -108,7 +108,7 @@ public class JackCompiler {
   public void compile(Path inputPath, Path outputPath) {
     try (BufferedReader reader = Files.newBufferedReader(inputPath)) {
       Stream<JackToken> tokens = jackTokenizer.tokenize(reader.lines());
-      //TODO handle compiler
+      //TODO in next project - handle compiler
       // write(tokens, ..., outputPath);
     } catch (IOException e) {
       throw new RuntimeException("Failed to write file");

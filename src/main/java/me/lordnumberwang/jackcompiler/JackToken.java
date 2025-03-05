@@ -91,7 +91,7 @@ public class JackToken {
       default ->
         throw new IllegalArgumentException("No type set");
     };
-    return writeTag() + " " + toXmlElement() + " " + writeEndTag();
+    return writeTag() + " " + getValue() + " " + writeEndTag();
   }
 
   public String typeString() {

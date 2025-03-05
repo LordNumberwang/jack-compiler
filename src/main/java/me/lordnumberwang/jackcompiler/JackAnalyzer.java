@@ -38,7 +38,7 @@ public class JackAnalyzer {
       construct compilation engine to handle generating XML
       march through input file and parse each line and generate code from it.
     */
-    // e.g. "/input" directory or "/input/myfile.jack"
+    // e.g. "/jack" directory or "/jack/myfile.jack"
     if (args.length < 1) {
       System.out.println("Error - no input directory given");
       return;

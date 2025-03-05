@@ -80,8 +80,13 @@ tasks.register<JavaExec>("jackCompile") {
     mainClass.set("me.lordnumberwang.jackcompiler.JackCompiler")
     classpath = sourceSets["main"].runtimeClasspath
 
-    val defaultPath = "input"
-    args = listOf(project.properties.getOrDefault("jackPath", defaultPath) as String)
+    val defaultPath = "jack"
+    val path = if (project.hasProperty("Path")) {
+        project.property("Path").toString()
+    } else {
+        defaultPath
+    }
+    args = listOf(path)
 }
 
 tasks.register<JavaExec>("jackAnalyze") {
@@ -90,7 +95,12 @@ tasks.register<JavaExec>("jackAnalyze") {
     //Default to using /input directory, searching for all *.jack files
     mainClass.set("me.lordnumberwang.jackcompiler.JackAnalyzer")
     classpath = sourceSets["main"].runtimeClasspath
+    val defaultPath = "jack"
 
-    val defaultPath = "input"
-    args = listOf(project.properties.getOrDefault("jackPath", defaultPath) as String)
+    val path = if (project.hasProperty("Path")) {
+        project.property("Path").toString()
+    } else {
+        defaultPath
+    }
+    args = listOf(path)
 }
