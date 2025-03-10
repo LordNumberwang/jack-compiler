@@ -34,6 +34,7 @@ public class CompilationEngine {
   int indent; //indentation level
   List<String> definedClasses;
   List<String> validTypes;
+  int lineCount;
 
   public CompilationEngine() {}
 
@@ -55,6 +56,7 @@ public class CompilationEngine {
       currentToken = null;
       tokensExhausted = false;
       indent = 0;
+      lineCount = 0;
       advance();
       compileClass();
     } catch (IOException e) {
@@ -110,7 +112,7 @@ public class CompilationEngine {
 
     writeToken(); //field/static detected
     if (isValidType()) {
-      writeIfValid(TokenType.IDENTIFIER); //type: className or defined classes
+      writeToken(); //type: className or defined classes
     } else {
       throw new IllegalArgumentException("Received invalid type: " + currentToken.getValue());
     }
@@ -239,10 +241,9 @@ public class CompilationEngine {
     writeLine("<statements>");
     indent++;
 
-    String value = currentToken.getValue();
     while(currentToken.type == TokenType.KEYWORD &&
-        Set.of("let","if","while","do","return").contains(value)) {
-      switch (value) {
+        Set.of("let","if","while","do","return").contains(currentToken.getValue())) {
+      switch (currentToken.getValue()) {
         case "let" -> compileLet();
         case "if" -> compileIf();
         case "while" -> compileWhile();
@@ -272,8 +273,6 @@ public class CompilationEngine {
     //optional  [ expr ]
     if (isValid(TokenType.SYMBOL, "[")) {
       writeToken(); //write '['
-      //TODO EXPRESSION
-      // Basic version: assume just identifier for now
       compileExpression();
       writeIfValid(TokenType.SYMBOL, "]");
     }
@@ -298,8 +297,6 @@ public class CompilationEngine {
     // if ( expression )
     writeToken(); //write 'if'
     writeIfValid(TokenType.SYMBOL, "(");
-    //TODO EXPRESSION
-    // Basic version: assume just identifier for now
     compileExpression();
     writeIfValid(TokenType.SYMBOL, ")");
 
@@ -434,21 +431,22 @@ public class CompilationEngine {
    *                                  array entry, or subroutine call.
    * Single look-ahead token is one of [ ( or . characters.
    * Assumes currentToken passed isTerm validation.
-   * TODO lookahead handling
    */
   void compileTerm() throws IOException {
     writeLine("<term>");
     indent++;
 
-    //TODO handle complex recursive expression elements
     switch(currentToken.type) {
       case INT_CONST, STRING_CONST:
-        //statements
-
+        writeToken(); //write constant
         break;
       case KEYWORD:
-        //handle KW
-
+        if (keywordConstant.contains(currentToken.getValue())) {
+          writeToken(); //write Keyword constant true/false/null/this
+        } else {
+          throw new IllegalArgumentException("Invalid keyword constant in term - "
+              + currentToken.getValue());
+        }
         break;
       case SYMBOL:
         switch(currentToken.getValue()) {
@@ -456,16 +454,64 @@ public class CompilationEngine {
             //Unary op + term case
             writeToken(); // "-" or "~" unaryOp
             compileTerm();
+            break;
+          case "(":
+            //( expression )
+            writeToken(); // (
+            compileExpression();
+            writeIfValid(TokenType.SYMBOL,")");
+            break;
+          default:
+            throw new IllegalArgumentException("Invalid symbol in term - "
+                + currentToken.getValue());
         }
         break;
-        //unaryOp term vs ( expression)
+      case IDENTIFIER:
+        //Lookahead to determine cases of: varName, varName[expression], subroutineCall
+        if (!(nextToken().type == TokenType.SYMBOL &&
+            Set.of("[", "(", ".").contains(nextToken().getValue()))) {
+          //Standard varName case assumed
+          writeToken();
+        } else {
+          switch (nextToken().getValue()) {
+            case "[":
+              // varName[expression] case
+              writeToken(); //varName
+              writeToken(); //[
+              compileExpression();
+              writeIfValid(TokenType.SYMBOL,"]");
+              break;
+            case "(":
+              // subroutineName (exprList)
+              if (isValidSubroutine()) {
+                //above will later validate subRoutine table presence
+                writeToken(); //write subroutineName
+                writeToken(); // (
+                compileExpressionList(); //expressionList
+                writeIfValid(TokenType.SYMBOL,")");
+              } else {
+                throw new IllegalArgumentException("Invalid subRoutine referenced - "
+                    + currentToken.getValue());
+              }
+              break;
+            case ".":
+              // (className|varName) '.' subroutineName (exprList)
+              writeToken(); //className/varName validate in table later
+              writeToken(); //write '.' (validated via lookahead)
+              if (isValidSubroutine()) {
+                //above will later validate subRoutine table presence
+                writeToken(); //write subroutineName
+                writeToken(); // (
+                compileExpressionList(); //expressionList
+                writeIfValid(TokenType.SYMBOL,")");
+              } else {
+                throw new IllegalArgumentException("Invalid subRoutine referenced - "
+                    + currentToken.getValue());
+              }
+              break;
+          }
+        }
     }
-
-//    switch (currentToken.type) {
-//      case INT_CONST, STRING_CONST -> true;
-//      case KEYWORD -> keywordConstant.contains(currentToken.getValue());
-//      case SYMBOL -> Set.of("(","-","~").contains(currentToken.getValue());
-//      case IDENTIFIER ->
 
     indent--;
     writeLine("</term>");
@@ -477,14 +523,16 @@ public class CompilationEngine {
    */
   void compileExpressionList() throws IOException {
     writeLine("<expressionList>");
-    indent++;
     // (expression (',' expression)*) )?
-    compileExpression(); //expression
-    while(isValid(TokenType.SYMBOL,",")) {
-      writeToken(); // ","
+    if (!isValid(TokenType.SYMBOL,")")) {
+      indent++;
       compileExpression(); //expression
+      while(isValid(TokenType.SYMBOL,",")) {
+        writeToken(); // ","
+        compileExpression(); //expression
+      }
+      indent--;
     }
-    indent--;
     writeLine("</expressionList>");
   }
 
@@ -500,11 +548,13 @@ public class CompilationEngine {
   public void advance() {
     if (!buffer.isEmpty()) {
       currentToken = buffer.poll();
+      lineCount++;
       return;
     }
     loadNextToken();
     if (!buffer.isEmpty()) {
       currentToken = buffer.poll();
+      lineCount++;
     } else {
       currentToken = null;
     }
@@ -543,10 +593,10 @@ public class CompilationEngine {
   }
 
   /**
-   * Validate the incoming
-   * @param type
-   * @param value
-   * @return
+   * Validate the incoming token
+   * @param type of token
+   * @param value of token in String form
+   * @return true/false if valid/invalid.
    */
   boolean isValid(JackToken token, TokenType type, String value) {
     return (token.type == type &&
@@ -565,38 +615,9 @@ public class CompilationEngine {
   }
 
   /**
-   * Determine if currentToken is a term
-   * Returns true if currentToken is any of:
-   *    integerConstant, stringConstant
-   *    keywordConstant (keyword with value true, false, this null)
-   *    symbol that is '('
-   *    symbol that is unary op '-' '~'
-   *    subroutineCall ... will paste in later.
-   *    identifier with look ahead (identifier'[', identifier'(' or identifier)
-   *    FOR NOW - assume just identifier is valid.
-   * @return true/false
-   */
-  boolean isTerm() {
-    //TODO test identifiers against name table
-    //TODO test identifiers with lookahead
-    return switch (currentToken.type) {
-      case INT_CONST, STRING_CONST -> true;
-      case KEYWORD -> keywordConstant.contains(currentToken.getValue());
-      case SYMBOL -> Set.of("(","-","~").contains(currentToken.getValue());
-      case IDENTIFIER ->
-        //TODO FOR NOW accept all, later validation for "[ ( ." plus presence in name tables
-        true;
-      default ->
-        throw new IllegalArgumentException(
-            "Passed invalid type for a term: " +
-            currentToken.typeString());
-    };
-  }
-
-  /**
    * Check if name is in subroutineName table
    * For now, checks only if identifier
-   * @return
+   * @return true if valid
    */
   boolean isValidSubroutine() {
     return currentToken.type == TokenType.IDENTIFIER;
